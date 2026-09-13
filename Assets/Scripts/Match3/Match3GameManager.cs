@@ -1,21 +1,19 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Match3
 {
     /// <summary>
-    /// 3매치 퍼즐의 전체 흐름을 담당한다: UI 생성, 입력 처리, 스왑/매치/낙하/리필 애니메이션,
-    /// 점수와 이동 횟수 관리, 승리/패배 처리.
+    /// 실제 퍼즐 한 판(보드+HUD+입력)만 담당한다. 메뉴/매칭/결과 화면 같은 전체 앱 흐름은
+    /// AppFlowManager가 맡고, 이 클래스는 AppFlowManager가 BeginRound()를 호출해줘야 시작한다.
     ///
-    /// 씬에 아무것도 준비되어 있지 않아도 동작한다 — 게임을 Play 하면 AutoBootstrap이
-    /// 자동으로 이 컴포넌트를 가진 오브젝트를 만들어주기 때문에, 별도의 씬 세팅 없이
-    /// 바로 Play 버튼만 누르면 퍼즐이 생성된다.
+    /// 라운드는 정해진 시간(roundDurationSeconds) 동안 진행되고, 시간이 다 되면
+    /// RoundEnded 이벤트로 최종 점수를 알린다. 싱글/대전 모두 같은 규칙(시간제)을 쓰며,
+    /// 대전에서는 BeginRound(seed)에 서버가 내려준 시드를 넣어 양쪽이 같은 보드로 시작한다.
     /// </summary>
     public class Match3GameManager : MonoBehaviour
     {
@@ -26,10 +24,8 @@ namespace Match3
         public float cellSize = 110f;
         public float cellSpacing = 8f;
 
-        [Header("게임 규칙")]
-        [Tooltip("0이면 이동 횟수 제한이 없다.")]
-        public int moveLimit = 20;
-        public int targetScore = 1000;
+        [Header("라운드 설정")]
+        public float roundDurationSeconds = 90f;
 
         [Header("입력")]
         [Tooltip("드래그가 이 거리(스크린 픽셀)를 넘으면 스와이프로 인식해 스왑을 시도한다.")]
@@ -39,6 +35,11 @@ namespace Match3
         public float swapDuration = 0.15f;
         public float fallDuration = 0.25f;
         public float clearDuration = 0.15f;
+
+        /// <summary>라운드가 시간 종료로 끝났을 때 최종 점수와 함께 호출된다.</summary>
+        public event Action<int> RoundEnded;
+
+        public int CurrentScore => score;
 
         private static readonly Color[] Palette =
         {
@@ -53,68 +54,69 @@ namespace Match3
         private Match3Board board;
         private TileView[,] views;
         private RectTransform boardRoot;
+        private GameObject canvasRoot;
 
         private Text scoreText;
-        private Text movesText;
-        private GameObject endPanel;
-        private Text endTitleText;
-        private Text endScoreText;
+        private Text timerText;
 
         private int score;
-        private int movesLeft;
         private bool inputLocked;
-        private bool gameOver;
-
-        // 이 씬에서 Play를 눌렀을 때만 퍼즐이 자동으로 생성된다.
-        // 다른 씬(예: SampleScene)에서 Play를 눌러도 아무 일도 일어나지 않는다.
-        private const string GameplaySceneName = "InGameScene";
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void AutoBootstrap()
-        {
-            if (SceneManager.GetActiveScene().name != GameplaySceneName)
-                return;
-
-            if (Object.FindFirstObjectByType<Match3GameManager>() != null)
-                return;
-
-            var go = new GameObject("Match3GameManager");
-            go.AddComponent<Match3GameManager>();
-        }
+        private bool roundActive;
+        private float timeRemaining;
+        private int lastDisplayedSeconds;
 
         private void Awake()
         {
-            EnsureEventSystem();
             BuildUI();
-            StartNewGame();
+            SetVisible(false);
         }
 
-        private void EnsureEventSystem()
+        /// <summary>게임 화면을 보이거나 숨긴다. AppFlowManager가 메뉴/결과 화면과 전환할 때 쓴다.</summary>
+        public void SetVisible(bool visible)
         {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-                return;
-
-            var eventSystemGo = new GameObject("EventSystem");
-            eventSystemGo.AddComponent<EventSystem>();
-            // 이 프로젝트는 새 Input System만 사용하도록 설정되어 있으므로
-            // 레거시 StandaloneInputModule 대신 InputSystemUIInputModule을 사용한다.
-            var uiModule = eventSystemGo.AddComponent<InputSystemUIInputModule>();
-            uiModule.AssignDefaultActions();
+            canvasRoot.SetActive(visible);
         }
 
-        private void StartNewGame()
+        /// <summary>
+        /// 새 라운드를 시작한다. seed를 지정하면(대전 모드) 그 시드로 보드를 생성해
+        /// 양쪽 플레이어가 같은 배치로 시작하고, null이면(싱글 모드) 매번 랜덤하게 생성한다.
+        /// </summary>
+        public void BeginRound(int? seed = null)
         {
+            StopAllCoroutines();
+
             score = 0;
-            movesLeft = moveLimit;
-            gameOver = false;
             inputLocked = false;
+            roundActive = true;
+            timeRemaining = roundDurationSeconds;
+            lastDisplayedSeconds = -1;
 
             int typeCount = Mathf.Clamp(tileTypeCount, 3, Palette.Length);
-            board = new Match3Board(width, height, typeCount);
+            board = new Match3Board(width, height, typeCount, seed);
 
             BuildBoardViews();
             UpdateHud();
-            endPanel.SetActive(false);
+            SetVisible(true);
+        }
+
+        private void Update()
+        {
+            if (!roundActive)
+                return;
+
+            timeRemaining -= Time.deltaTime;
+            if (timeRemaining <= 0f)
+            {
+                timeRemaining = 0f;
+                roundActive = false;
+                inputLocked = true;
+                StopAllCoroutines(); // 진행 중이던 스왑/연쇄 애니메이션을 즉시 멈춰서 시간 종료 이후 점수가 더 안 오르게 한다.
+                UpdateHud();
+                RoundEnded?.Invoke(score);
+                return;
+            }
+
+            UpdateHud();
         }
 
         // ----------------------------------------------------------------
@@ -123,26 +125,25 @@ namespace Match3
 
         private void BuildUI()
         {
-            var canvasGo = new GameObject("Match3Canvas");
-            canvasGo.transform.SetParent(transform, false);
+            canvasRoot = new GameObject("Match3Canvas");
+            canvasRoot.transform.SetParent(transform, false);
 
-            var canvas = canvasGo.AddComponent<Canvas>();
+            var canvas = canvasRoot.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
-            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            var scaler = canvasRoot.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
 
-            canvasGo.AddComponent<GraphicRaycaster>();
+            canvasRoot.AddComponent<GraphicRaycaster>();
 
-            var background = CreateImage("Background", canvasGo.transform, new Color(0.10f, 0.11f, 0.15f));
-            StretchFull(background.rectTransform);
+            var background = UIFactory.CreateImage("Background", canvasRoot.transform, new Color(0.10f, 0.11f, 0.15f));
+            UIFactory.StretchFull(background.rectTransform);
 
-            BuildTopBar(canvasGo.transform);
-            BuildBoardRoot(canvasGo.transform);
-            BuildHint(canvasGo.transform);
-            BuildEndPanel(canvasGo.transform);
+            BuildTopBar(canvasRoot.transform);
+            BuildBoardRoot(canvasRoot.transform);
+            BuildHint(canvasRoot.transform);
         }
 
         // 상단 바/하단 안내문구가 차지하는 고정 높이. 보드 크기를 화면에 맞출 때도 사용한다.
@@ -151,31 +152,31 @@ namespace Match3
 
         private void BuildTopBar(Transform parent)
         {
-            var topBar = CreateRect("TopBar", parent);
+            var topBar = UIFactory.CreateRect("TopBar", parent);
             topBar.anchorMin = new Vector2(0, 1);
             topBar.anchorMax = new Vector2(1, 1);
             topBar.pivot = new Vector2(0.5f, 1);
             topBar.sizeDelta = new Vector2(0, TopBarHeight);
             topBar.anchoredPosition = Vector2.zero;
 
-            scoreText = CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
+            scoreText = UIFactory.CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
             var scoreRt = scoreText.rectTransform;
             scoreRt.anchorMin = new Vector2(0, 0);
             scoreRt.anchorMax = new Vector2(0.5f, 1);
             scoreRt.offsetMin = new Vector2(40, 0);
             scoreRt.offsetMax = Vector2.zero;
 
-            movesText = CreateText("MovesText", topBar, "이동 횟수: 20", 56, TextAnchor.MiddleRight);
-            var movesRt = movesText.rectTransform;
-            movesRt.anchorMin = new Vector2(0.5f, 0);
-            movesRt.anchorMax = new Vector2(1, 1);
-            movesRt.offsetMin = Vector2.zero;
-            movesRt.offsetMax = new Vector2(-40, 0);
+            timerText = UIFactory.CreateText("TimerText", topBar, "남은 시간: 1:30", 56, TextAnchor.MiddleRight);
+            var timerRt = timerText.rectTransform;
+            timerRt.anchorMin = new Vector2(0.5f, 0);
+            timerRt.anchorMax = new Vector2(1, 1);
+            timerRt.offsetMin = Vector2.zero;
+            timerRt.offsetMax = new Vector2(-40, 0);
         }
 
         private void BuildBoardRoot(Transform parent)
         {
-            boardRoot = CreateRect("BoardRoot", parent);
+            boardRoot = UIFactory.CreateRect("BoardRoot", parent);
             boardRoot.anchorMin = boardRoot.anchorMax = new Vector2(0.5f, 0.5f);
             boardRoot.pivot = new Vector2(0.5f, 0.5f);
 
@@ -185,8 +186,8 @@ namespace Match3
             // 상단 바와 하단 안내문구 사이 정중앙에 오도록 고정 오프셋을 준다.
             boardRoot.anchoredPosition = new Vector2(0, (HintBarHeight - TopBarHeight) / 2f);
 
-            var boardBg = CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
-            StretchFull(boardBg.rectTransform);
+            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
+            UIFactory.StretchFull(boardBg.rectTransform);
 
             // 세로로 좁거나(가로로 긴 창 등) 화면 비율이 기준 해상도와 많이 다르면
             // 보드가 상단 바/안내문구와 겹칠 수 있으므로, 남는 공간에 맞춰 통째로 축소한다.
@@ -201,7 +202,7 @@ namespace Match3
 
         private void BuildHint(Transform parent)
         {
-            var hint = CreateText("HintText", parent, "타일을 드래그해서 인접한 타일과 교환하세요", 40, TextAnchor.MiddleCenter);
+            var hint = UIFactory.CreateText("HintText", parent, "타일을 드래그해서 인접한 타일과 교환하세요", 40, TextAnchor.MiddleCenter);
             hint.color = new Color(1f, 1f, 1f, 0.6f);
             var rt = hint.rectTransform;
             rt.anchorMin = new Vector2(0, 0);
@@ -209,103 +210,6 @@ namespace Match3
             rt.pivot = new Vector2(0.5f, 0);
             rt.sizeDelta = new Vector2(0, HintBarHeight);
             rt.anchoredPosition = new Vector2(0, 40);
-        }
-
-        private void BuildEndPanel(Transform parent)
-        {
-            endPanel = new GameObject("EndPanel", typeof(RectTransform));
-            var rt = (RectTransform)endPanel.transform;
-            rt.SetParent(parent, false);
-            StretchFull(rt);
-
-            var bg = endPanel.AddComponent<Image>();
-            bg.color = new Color(0, 0, 0, 0.75f);
-
-            endTitleText = CreateText("EndTitle", rt, "게임 종료", 96, TextAnchor.MiddleCenter);
-            var titleRt = endTitleText.rectTransform;
-            titleRt.anchorMin = new Vector2(0.1f, 0.56f);
-            titleRt.anchorMax = new Vector2(0.9f, 0.72f);
-            titleRt.offsetMin = titleRt.offsetMax = Vector2.zero;
-
-            endScoreText = CreateText("EndScore", rt, "최종 점수: 0", 60, TextAnchor.MiddleCenter);
-            var scoreRt = endScoreText.rectTransform;
-            scoreRt.anchorMin = new Vector2(0.1f, 0.44f);
-            scoreRt.anchorMax = new Vector2(0.9f, 0.56f);
-            scoreRt.offsetMin = scoreRt.offsetMax = Vector2.zero;
-
-            var restartButton = CreateButton("RestartButton", rt, "다시 시작", new Vector2(0.5f, 0.32f));
-            restartButton.onClick.AddListener(StartNewGame);
-
-            endPanel.SetActive(false);
-        }
-
-        private static RectTransform CreateRect(string name, Transform parent)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            return (RectTransform)go.transform;
-        }
-
-        private static Image CreateImage(string name, Transform parent, Color color)
-        {
-            var rt = CreateRect(name, parent);
-            var image = rt.gameObject.AddComponent<Image>();
-            image.color = color;
-            return image;
-        }
-
-        private static void StretchFull(RectTransform rt)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-        }
-
-        private static Font koreanFont;
-
-        // 유니티 기본 내장 폰트(LegacyRuntime.ttf)는 한글 글리프가 없어서
-        // 별도로 포함시킨 한글 폰트(나눔고딕, OFL 라이선스)를 사용한다.
-        private static Font KoreanFont
-        {
-            get
-            {
-                if (koreanFont == null)
-                    koreanFont = Resources.Load<Font>("Fonts/NanumGothic-Regular");
-                return koreanFont;
-            }
-        }
-
-        private static Text CreateText(string name, Transform parent, string content, int fontSize, TextAnchor anchor)
-        {
-            var rt = CreateRect(name, parent);
-            var text = rt.gameObject.AddComponent<Text>();
-            text.font = KoreanFont != null ? KoreanFont : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.text = content;
-            text.fontSize = fontSize;
-            text.alignment = anchor;
-            text.color = Color.white;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
-            return text;
-        }
-
-        private static Button CreateButton(string name, Transform parent, string label, Vector2 anchorCenter)
-        {
-            var rt = CreateRect(name, parent);
-            rt.anchorMin = rt.anchorMax = anchorCenter;
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(420, 140);
-
-            var image = rt.gameObject.AddComponent<Image>();
-            image.color = new Color(0.20f, 0.60f, 0.86f);
-
-            var button = rt.gameObject.AddComponent<Button>();
-
-            var labelText = CreateText(name + "_Label", rt, label, 52, TextAnchor.MiddleCenter);
-            StretchFull(labelText.rectTransform);
-
-            return button;
         }
 
         // ----------------------------------------------------------------
@@ -343,7 +247,6 @@ namespace Match3
 
             var rt = (RectTransform)go.transform;
             // CellToLocalPos가 보드 중심을 (0,0)으로 계산하므로, anchor도 보드루트 중심에 맞춘다.
-            // (좌하단(0,0)으로 두면 그만큼 좌표가 추가로 밀려서 보드의 우상단 부분만 화면에 보이게 된다.)
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(cellSize, cellSize);
@@ -369,7 +272,7 @@ namespace Match3
         /// <summary>타일을 direction 방향으로 드래그했을 때 TileView가 호출한다.</summary>
         public void RequestSwap(TileView tile, Vector2Int direction)
         {
-            if (inputLocked || gameOver)
+            if (inputLocked || !roundActive)
                 return;
 
             int targetCol = tile.Col + direction.x;
@@ -410,19 +313,15 @@ namespace Match3
                 yield break;
             }
 
-            if (moveLimit > 0)
-                movesLeft--;
-
             yield return StartCoroutine(ResolveMatches());
 
-            if (!gameOver && !board.HasAnyValidMove())
+            if (roundActive && !board.HasAnyValidMove())
             {
                 board.Shuffle();
                 RefreshAllViews();
             }
 
             UpdateHud();
-            CheckEndConditions();
             inputLocked = false;
         }
 
@@ -578,32 +477,19 @@ namespace Match3
         private static float EaseOutQuad(float x) => 1f - (1f - x) * (1f - x);
 
         // ----------------------------------------------------------------
-        // HUD / 게임 종료
+        // HUD
         // ----------------------------------------------------------------
 
         private void UpdateHud()
         {
             scoreText.text = $"점수: {score}";
-            movesText.text = moveLimit > 0 ? $"이동 횟수: {Mathf.Max(0, movesLeft)}" : "이동 횟수: ∞";
-        }
 
-        private void CheckEndConditions()
-        {
-            if (gameOver)
+            int secondsLeft = Mathf.CeilToInt(timeRemaining);
+            if (secondsLeft == lastDisplayedSeconds)
                 return;
 
-            if (score >= targetScore)
-                EndGame(true);
-            else if (moveLimit > 0 && movesLeft <= 0)
-                EndGame(false);
-        }
-
-        private void EndGame(bool win)
-        {
-            gameOver = true;
-            endTitleText.text = win ? "승리했습니다!" : "게임 종료";
-            endScoreText.text = $"최종 점수: {score}";
-            endPanel.SetActive(true);
+            lastDisplayedSeconds = secondsLeft;
+            timerText.text = $"남은 시간: {secondsLeft / 60}:{secondsLeft % 60:00}";
         }
     }
 }

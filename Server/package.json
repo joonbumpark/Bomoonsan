@@ -1,0 +1,13 @@
+{
+  "name": "match3-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bomoonsan 3-match puzzle versus mode: matchmaking + score comparison + leaderboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

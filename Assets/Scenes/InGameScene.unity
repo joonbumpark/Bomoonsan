@@ -260,8 +260,7 @@ MonoBehaviour:
   tileTypeCount: 5
   cellSize: 110
   cellSpacing: 8
-  moveLimit: 20
-  targetScore: 1000
+  roundDurationSeconds: 90
   swipeThreshold: 30
   swapDuration: 0.15
   fallDuration: 0.25
