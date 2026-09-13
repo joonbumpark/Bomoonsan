@@ -145,13 +145,17 @@ namespace Match3
             BuildEndPanel(canvasGo.transform);
         }
 
+        // 상단 바/하단 안내문구가 차지하는 고정 높이. 보드 크기를 화면에 맞출 때도 사용한다.
+        private const float TopBarHeight = 220f;
+        private const float HintBarHeight = 100f;
+
         private void BuildTopBar(Transform parent)
         {
             var topBar = CreateRect("TopBar", parent);
             topBar.anchorMin = new Vector2(0, 1);
             topBar.anchorMax = new Vector2(1, 1);
             topBar.pivot = new Vector2(0.5f, 1);
-            topBar.sizeDelta = new Vector2(0, 220);
+            topBar.sizeDelta = new Vector2(0, TopBarHeight);
             topBar.anchoredPosition = Vector2.zero;
 
             scoreText = CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
@@ -178,10 +182,21 @@ namespace Match3
             float boardW = width * cellSize + (width - 1) * cellSpacing;
             float boardH = height * cellSize + (height - 1) * cellSpacing;
             boardRoot.sizeDelta = new Vector2(boardW, boardH);
-            boardRoot.anchoredPosition = new Vector2(0, -60);
+            // 상단 바와 하단 안내문구 사이 정중앙에 오도록 고정 오프셋을 준다.
+            boardRoot.anchoredPosition = new Vector2(0, (HintBarHeight - TopBarHeight) / 2f);
 
             var boardBg = CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
             StretchFull(boardBg.rectTransform);
+
+            // 세로로 좁거나(가로로 긴 창 등) 화면 비율이 기준 해상도와 많이 다르면
+            // 보드가 상단 바/안내문구와 겹칠 수 있으므로, 남는 공간에 맞춰 통째로 축소한다.
+            Canvas.ForceUpdateCanvases();
+            var canvasRect = (RectTransform)parent;
+            float margin = 40f;
+            float safeWidth = canvasRect.rect.width - margin * 2f;
+            float safeHeight = canvasRect.rect.height - TopBarHeight - HintBarHeight - margin;
+            float scale = Mathf.Min(1f, safeWidth / boardW, safeHeight / boardH);
+            boardRoot.localScale = Vector3.one * scale;
         }
 
         private void BuildHint(Transform parent)
@@ -192,7 +207,7 @@ namespace Match3
             rt.anchorMin = new Vector2(0, 0);
             rt.anchorMax = new Vector2(1, 0);
             rt.pivot = new Vector2(0.5f, 0);
-            rt.sizeDelta = new Vector2(0, 100);
+            rt.sizeDelta = new Vector2(0, HintBarHeight);
             rt.anchoredPosition = new Vector2(0, 40);
         }
 
@@ -247,11 +262,25 @@ namespace Match3
             rt.offsetMax = Vector2.zero;
         }
 
+        private static Font koreanFont;
+
+        // 유니티 기본 내장 폰트(LegacyRuntime.ttf)는 한글 글리프가 없어서
+        // 별도로 포함시킨 한글 폰트(나눔고딕, OFL 라이선스)를 사용한다.
+        private static Font KoreanFont
+        {
+            get
+            {
+                if (koreanFont == null)
+                    koreanFont = Resources.Load<Font>("Fonts/NanumGothic-Regular");
+                return koreanFont;
+            }
+        }
+
         private static Text CreateText(string name, Transform parent, string content, int fontSize, TextAnchor anchor)
         {
             var rt = CreateRect(name, parent);
             var text = rt.gameObject.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = KoreanFont != null ? KoreanFont : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.text = content;
             text.fontSize = fontSize;
             text.alignment = anchor;
