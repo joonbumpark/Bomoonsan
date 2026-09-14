@@ -202,7 +202,7 @@ namespace Match3
 
         private void BuildHint(Transform parent)
         {
-            var hint = UIFactory.CreateText("HintText", parent, "타일을 드래그해서 인접한 타일과 교환하세요", 40, TextAnchor.MiddleCenter);
+            var hint = UIFactory.CreateText("HintText", parent, "드래그로 교환, 아이템 블록은 탭하거나 옮기면 발동!", 40, TextAnchor.MiddleCenter);
             hint.color = new Color(1f, 1f, 1f, 0.6f);
             var rt = hint.rectTransform;
             rt.anchorMin = new Vector2(0, 0);
@@ -288,6 +288,15 @@ namespace Match3
             StartCoroutine(TrySwap(tile, targetTile));
         }
 
+        /// <summary>아이템 블록을 드래그가 아닌 짧은 탭으로 클릭했을 때 TileView가 호출한다.</summary>
+        public void RequestActivateItem(TileView tile)
+        {
+            if (inputLocked || !roundActive || tile.Item == ItemType.None)
+                return;
+
+            StartCoroutine(ActivateItemRoutine(tile));
+        }
+
         // ----------------------------------------------------------------
         // 스왑 / 매치 / 낙하 / 리필
         // ----------------------------------------------------------------
@@ -298,14 +307,17 @@ namespace Match3
 
             var a = new Vector2Int(tileA.Col, tileA.Row);
             var b = new Vector2Int(tileB.Col, tileB.Row);
+            bool involvesItem = tileA.Item != ItemType.None || tileB.Item != ItemType.None;
 
             yield return StartCoroutine(AnimateSwapVisual(tileA, tileB));
             board.Swap(a, b);
             SwapViews(tileA, tileB);
 
-            if (board.FindMatches().Count == 0)
+            bool matched = board.FindMatches().Count > 0;
+
+            if (!involvesItem && !matched)
             {
-                // 매치가 만들어지지 않으면 원래대로 되돌린다.
+                // 아이템도 아니고 매치도 만들어지지 않으면 원래대로 되돌린다.
                 yield return StartCoroutine(AnimateSwapVisual(tileA, tileB));
                 board.Swap(a, b);
                 SwapViews(tileA, tileB);
@@ -313,7 +325,38 @@ namespace Match3
                 yield break;
             }
 
-            yield return StartCoroutine(ResolveMatches());
+            if (involvesItem)
+            {
+                // 아이템 블록은 매치 성립 여부와 상관없이, 옮겨지면(스왑되면) 바로 발동한다.
+                var cellsToClear = new HashSet<Vector2Int>();
+                if (tileA.Item != ItemType.None)
+                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileA.Col, tileA.Row)));
+                if (tileB.Item != ItemType.None)
+                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileB.Col, tileB.Row)));
+
+                yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
+            }
+            else
+            {
+                yield return StartCoroutine(ResolveMatches());
+            }
+
+            if (roundActive && !board.HasAnyValidMove())
+            {
+                board.Shuffle();
+                RefreshAllViews();
+            }
+
+            UpdateHud();
+            inputLocked = false;
+        }
+
+        private IEnumerator ActivateItemRoutine(TileView tile)
+        {
+            inputLocked = true;
+
+            var cellsToClear = board.ActivateItem(new Vector2Int(tile.Col, tile.Row));
+            yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
 
             if (roundActive && !board.HasAnyValidMove())
             {
@@ -356,22 +399,26 @@ namespace Match3
             b.RectTransform.anchoredPosition = aStart;
         }
 
+        /// <summary>스왑으로 만들어진 첫 매치를 모양별로 처리한다(아이템 생성 포함한 뒤 연쇄 진행).</summary>
         private IEnumerator ResolveMatches()
         {
-            int chain = 0;
+            var groups = board.FindMatchGroups();
+            var cellsToClear = ApplyMatchGroupsAndGetClearSet(groups);
+            yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
+        }
 
-            while (true)
+        /// <summary>
+        /// 주어진 칸들을 지우고 중력/리필을 적용한 뒤, 그 결과로 새로 생기는 매치가 있으면
+        /// 아이템 생성까지 포함해 더 이상 지울 칸이 없을 때까지 반복한다.
+        /// </summary>
+        private IEnumerator RunCascade(HashSet<Vector2Int> cellsToClear, int chain)
+        {
+            while (cellsToClear.Count > 0)
             {
-                var matches = board.FindMatches();
-                if (matches.Count == 0)
-                    break;
+                yield return StartCoroutine(AnimateClear(cellsToClear));
 
-                chain++;
-
-                yield return StartCoroutine(AnimateClear(matches));
-
-                board.Clear(matches);
-                foreach (var pos in matches)
+                board.Clear(cellsToClear);
+                foreach (var pos in cellsToClear)
                 {
                     var view = views[pos.x, pos.y];
                     if (view != null)
@@ -381,7 +428,7 @@ namespace Match3
                     }
                 }
 
-                score += matches.Count * 10 * chain;
+                score += cellsToClear.Count * 10 * chain;
 
                 var moves = board.CollapseColumns();
                 ApplyCollapseToViews(moves);
@@ -393,7 +440,39 @@ namespace Match3
 
                 UpdateHud();
                 yield return new WaitForSeconds(0.05f);
+
+                chain++;
+                var groups = board.FindMatchGroups();
+                cellsToClear = ApplyMatchGroupsAndGetClearSet(groups);
             }
+        }
+
+        /// <summary>
+        /// 매치 그룹들을 순회하며, 아이템으로 바뀌어야 할 칸은 지우지 않고 아이템을 붙여 살려두고
+        /// 나머지 칸들만 모아서 실제로 지울 집합으로 반환한다.
+        /// </summary>
+        private HashSet<Vector2Int> ApplyMatchGroupsAndGetClearSet(List<MatchGroup> groups)
+        {
+            var cellsToClear = new HashSet<Vector2Int>();
+
+            foreach (var group in groups)
+            {
+                foreach (var cell in group.Cells)
+                {
+                    if (group.SpawnItem != ItemType.None && cell == group.SpawnCell)
+                    {
+                        board.SetItem(cell.x, cell.y, group.SpawnItem);
+                        var view = views[cell.x, cell.y];
+                        if (view != null)
+                            view.SetItem(group.SpawnItem);
+                        continue; // 이 칸은 지우지 않고 아이템 블록으로 남긴다.
+                    }
+
+                    cellsToClear.Add(cell);
+                }
+            }
+
+            return cellsToClear;
         }
 
         private IEnumerator AnimateClear(IEnumerable<Vector2Int> cells)
@@ -470,6 +549,7 @@ namespace Match3
                         continue;
                     int type = board.GetType(col, row);
                     view.SetType(type, Palette[type]);
+                    view.SetItem(board.GetItem(col, row));
                 }
             }
         }
