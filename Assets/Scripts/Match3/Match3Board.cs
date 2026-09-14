@@ -129,11 +129,11 @@ namespace Match3
         /// 매치를 모양별로 묶어서 반환한다. 가로/세로 런이 서로 겹치는 칸을 공유하면 하나의
         /// 그룹으로 합쳐지며, 그룹의 모양에 따라 아이템 블록 생성 여부가 결정된다.
         ///
-        /// - 4개짜리 한 줄: 합쳐진 방향으로 한 줄을 지우는 아이템(LineHorizontal/LineVertical)
-        /// - 5개 이상 한 줄: 같은 색상을 화면 전체에서 지우는 아이템(ColorBomb)
-        /// - 가로 런과 세로 런이 교차하는 십자/T/뒤집힌 T 모양(코너형 L모양 제외): 3x3을
-        ///   폭발시키는 아이템(AreaBomb). 두 런 모두 길이 3 이상이 교차 셀 하나를 공유하므로
-        ///   전체 칸 수는 최소 5개 이상이 된다.
+        /// - 4개짜리 한 줄(가로만 또는 세로만): 합쳐진 방향으로 한 줄을 지우는 아이템(LineHorizontal/LineVertical)
+        /// - 5개 이상 한 줄(가로만 또는 세로만): 같은 색상을 화면 전체에서 지우는 아이템(ColorBomb)
+        /// - 일자가 아닌 모양(가로 런과 세로 런이 하나라도 겹쳐서 생기는 코너/T/십자 등 어떤 모양이든):
+        ///   3x3을 폭발시키는 아이템(AreaBomb). 겹치려면 두 런 모두 길이 3 이상이어야 하므로
+        ///   전체 칸 수는 항상 5개 이상이 된다.
         /// </summary>
         public List<MatchGroup> FindMatchGroups()
         {
@@ -283,41 +283,28 @@ namespace Match3
                 ItemType spawnItem = ItemType.None;
                 Vector2Int spawnCell = root;
 
-                if (hCount == 1 && vCount == 0)
+                if (hCount >= 1 && vCount >= 1)
+                {
+                    // 가로 런과 세로 런이 하나라도 겹치면 일자가 아닌 모양(코너/T/십자/그 이상)이다.
+                    // 겹치려면 두 런 모두 길이 3 이상이어야 하므로 전체 칸 수는 항상 5개 이상이라
+                    // 별도 개수 확인 없이 바로 3x3 폭탄으로 만든다.
+                    spawnItem = ItemType.AreaBomb;
+                    spawnCell = (hCount == 1 && vCount == 1)
+                        ? new Vector2Int(vList[0].col, hList[0].row) // 런이 각각 하나뿐이면 교차점에 만든다.
+                        : root; // 런이 여러 개 얽힌 복잡한 모양은 그룹 대표 칸에 만든다.
+                }
+                else if (hCount == 1)
                 {
                     var run = hList[0];
                     spawnCell = new Vector2Int((run.start + run.end) / 2, run.row);
                     spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: true);
                 }
-                else if (vCount == 1 && hCount == 0)
+                else if (vCount == 1)
                 {
                     var run = vList[0];
                     spawnCell = new Vector2Int(run.col, (run.start + run.end) / 2);
                     spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: false);
                 }
-                else if (hCount == 1 && vCount == 1)
-                {
-                    var h = hList[0];
-                    var v = vList[0];
-                    var cross = new Vector2Int(v.col, h.row);
-
-                    int leftArm = cross.x - h.start;
-                    int rightArm = h.end - cross.x;
-                    int downArm = cross.y - v.start;
-                    int upArm = v.end - cross.y;
-
-                    bool hasBothH = leftArm >= 1 && rightArm >= 1;
-                    bool hasBothV = downArm >= 1 && upArm >= 1;
-
-                    // 둘 다 양쪽으로 뻗어있으면 십자(+), 한쪽만 양쪽으로 뻗어있으면 T(또는 뒤집힌 T,
-                    // 옆으로 누운 T) 모양이다. 두 런 모두 한쪽으로만 뻗어 만나는 코너(L)형만 제외한다.
-                    if (hasBothH || hasBothV)
-                    {
-                        spawnItem = ItemType.AreaBomb;
-                        spawnCell = cross;
-                    }
-                }
-                // 세 개 이상의 런이 얽힌 복잡한 모양은 안전하게 특수 아이템 없이 전부 지운다.
 
                 groups.Add(new MatchGroup(cells, colorType, spawnItem, spawnCell));
             }
