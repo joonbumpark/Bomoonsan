@@ -4,10 +4,75 @@ using UnityEngine.UI;
 namespace Match3
 {
     /// <summary>
-    /// 코드로 uGUI 요소를 만들 때 쓰는 공용 헬퍼. Match3GameManager와 AppFlowManager가 함께 쓴다.
+    /// 코드로 uGUI 요소를 만들 때 쓰는 공용 헬퍼. Match3GameManager/WhackGameManager/
+    /// SimonGameManager와 AppFlowManager가 함께 쓴다.
     /// </summary>
     public static class UIFactory
     {
+        /// <summary>
+        /// "제한시간 라운드 게임" 하나가 쓰는 전체화면 캔버스(배경 포함)를 만든다.
+        /// Match3/Whack/Simon 게임 매니저가 전부 이 위에 자기 판/HUD를 올린다.
+        /// </summary>
+        public static GameObject CreateGameCanvasRoot(Transform parent, string name)
+        {
+            var canvasRoot = new GameObject(name);
+            canvasRoot.transform.SetParent(parent, false);
+
+            var canvas = canvasRoot.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            var scaler = canvasRoot.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            canvasRoot.AddComponent<GraphicRaycaster>();
+
+            var background = CreateImage("Background", canvasRoot.transform, new Color(0.10f, 0.11f, 0.15f));
+            StretchFull(background.rectTransform);
+
+            return canvasRoot;
+        }
+
+        /// <summary>화면 위쪽에 점수/남은시간을 보여주는 고정 높이 바를 만든다.</summary>
+        public static void CreateGameTopBar(Transform parent, float height, out Text scoreText, out Text timerText)
+        {
+            var topBar = CreateRect("TopBar", parent);
+            topBar.anchorMin = new Vector2(0, 1);
+            topBar.anchorMax = new Vector2(1, 1);
+            topBar.pivot = new Vector2(0.5f, 1);
+            topBar.sizeDelta = new Vector2(0, height);
+            topBar.anchoredPosition = Vector2.zero;
+
+            scoreText = CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
+            var scoreRt = scoreText.rectTransform;
+            scoreRt.anchorMin = new Vector2(0, 0);
+            scoreRt.anchorMax = new Vector2(0.5f, 1);
+            scoreRt.offsetMin = new Vector2(40, 0);
+            scoreRt.offsetMax = Vector2.zero;
+
+            timerText = CreateText("TimerText", topBar, "남은 시간: 1:30", 56, TextAnchor.MiddleRight);
+            var timerRt = timerText.rectTransform;
+            timerRt.anchorMin = new Vector2(0.5f, 0);
+            timerRt.anchorMax = new Vector2(1, 1);
+            timerRt.offsetMin = Vector2.zero;
+            timerRt.offsetMax = new Vector2(-40, 0);
+        }
+
+        /// <summary>화면 아래쪽 고정 높이 안내문구 바를 만들고, 나중에 문구를 바꿀 수 있게 Text를 반환한다.</summary>
+        public static Text CreateGameHint(Transform parent, float height, string message)
+        {
+            var hint = CreateText("HintText", parent, message, 40, TextAnchor.MiddleCenter);
+            hint.color = new Color(1f, 1f, 1f, 0.6f);
+            var rt = hint.rectTransform;
+            rt.anchorMin = new Vector2(0, 0);
+            rt.anchorMax = new Vector2(1, 0);
+            rt.pivot = new Vector2(0.5f, 0);
+            rt.sizeDelta = new Vector2(0, height);
+            rt.anchoredPosition = new Vector2(0, 40);
+            return hint;
+        }
+
         private static Font koreanFont;
 
         // 유니티 기본 내장 폰트(LegacyRuntime.ttf)는 한글 글리프가 없어서

@@ -101,9 +101,9 @@ namespace Match3
             }
         }
 
-        public void JoinQueue(string playerName)
+        public void JoinQueue(string playerName, string game)
         {
-            SendJson(new JoinQueueMessage { name = playerName });
+            SendJson(new JoinQueueMessage { name = playerName, game = game });
         }
 
         public void LeaveQueue()
@@ -116,9 +116,9 @@ namespace Match3
             SendJson(new SubmitScoreMessage { matchId = matchId, score = score });
         }
 
-        public void RequestLeaderboard()
+        public void RequestLeaderboard(string game)
         {
-            SendJson(new SimpleMessage { type = "get_leaderboard" });
+            SendJson(new GetLeaderboardMessage { game = game });
         }
 
         private void SendJson(object message)
@@ -144,7 +144,8 @@ namespace Match3
 
         [Serializable] private class TypeOnly { public string type; }
         [Serializable] private class SimpleMessage { public string type; }
-        [Serializable] private class JoinQueueMessage { public string type = "join_queue"; public string name; }
+        [Serializable] private class JoinQueueMessage { public string type = "join_queue"; public string name; public string game; }
+        [Serializable] private class GetLeaderboardMessage { public string type = "get_leaderboard"; public string game; }
         [Serializable] private class SubmitScoreMessage { public string type = "submit_score"; public string matchId; public int score; }
         [Serializable] private class MatchedMessage { public string type; public string matchId; public int seed; public string opponentName; }
         [Serializable] private class MatchResultMessage { public string type; public string matchId; public string result; public int yourScore; public int opponentScore; }

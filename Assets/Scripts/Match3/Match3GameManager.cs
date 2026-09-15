@@ -15,7 +15,7 @@ namespace Match3
     /// RoundEnded 이벤트로 최종 점수를 알린다. 싱글/대전 모두 같은 규칙(시간제)을 쓰며,
     /// 대전에서는 BeginRound(seed)에 서버가 내려준 시드를 넣어 양쪽이 같은 보드로 시작한다.
     /// </summary>
-    public class Match3GameManager : MonoBehaviour
+    public class Match3GameManager : MonoBehaviour, IRoundGame
     {
         [Header("보드 설정")]
         [Min(4)] public int width = 8;
@@ -125,54 +125,15 @@ namespace Match3
 
         private void BuildUI()
         {
-            canvasRoot = new GameObject("Match3Canvas");
-            canvasRoot.transform.SetParent(transform, false);
-
-            var canvas = canvasRoot.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasRoot.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080, 1920);
-            scaler.matchWidthOrHeight = 0.5f;
-
-            canvasRoot.AddComponent<GraphicRaycaster>();
-
-            var background = UIFactory.CreateImage("Background", canvasRoot.transform, new Color(0.10f, 0.11f, 0.15f));
-            UIFactory.StretchFull(background.rectTransform);
-
-            BuildTopBar(canvasRoot.transform);
+            canvasRoot = UIFactory.CreateGameCanvasRoot(transform, "Match3Canvas");
+            UIFactory.CreateGameTopBar(canvasRoot.transform, TopBarHeight, out scoreText, out timerText);
             BuildBoardRoot(canvasRoot.transform);
-            BuildHint(canvasRoot.transform);
+            UIFactory.CreateGameHint(canvasRoot.transform, HintBarHeight, "드래그로 교환, 아이템 블록은 탭하거나 옮기면 발동!");
         }
 
         // 상단 바/하단 안내문구가 차지하는 고정 높이. 보드 크기를 화면에 맞출 때도 사용한다.
         private const float TopBarHeight = 220f;
         private const float HintBarHeight = 100f;
-
-        private void BuildTopBar(Transform parent)
-        {
-            var topBar = UIFactory.CreateRect("TopBar", parent);
-            topBar.anchorMin = new Vector2(0, 1);
-            topBar.anchorMax = new Vector2(1, 1);
-            topBar.pivot = new Vector2(0.5f, 1);
-            topBar.sizeDelta = new Vector2(0, TopBarHeight);
-            topBar.anchoredPosition = Vector2.zero;
-
-            scoreText = UIFactory.CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
-            var scoreRt = scoreText.rectTransform;
-            scoreRt.anchorMin = new Vector2(0, 0);
-            scoreRt.anchorMax = new Vector2(0.5f, 1);
-            scoreRt.offsetMin = new Vector2(40, 0);
-            scoreRt.offsetMax = Vector2.zero;
-
-            timerText = UIFactory.CreateText("TimerText", topBar, "남은 시간: 1:30", 56, TextAnchor.MiddleRight);
-            var timerRt = timerText.rectTransform;
-            timerRt.anchorMin = new Vector2(0.5f, 0);
-            timerRt.anchorMax = new Vector2(1, 1);
-            timerRt.offsetMin = Vector2.zero;
-            timerRt.offsetMax = new Vector2(-40, 0);
-        }
 
         private void BuildBoardRoot(Transform parent)
         {
@@ -198,18 +159,6 @@ namespace Match3
             float safeHeight = canvasRect.rect.height - TopBarHeight - HintBarHeight - margin;
             float scale = Mathf.Min(1f, safeWidth / boardW, safeHeight / boardH);
             boardRoot.localScale = Vector3.one * scale;
-        }
-
-        private void BuildHint(Transform parent)
-        {
-            var hint = UIFactory.CreateText("HintText", parent, "드래그로 교환, 아이템 블록은 탭하거나 옮기면 발동!", 40, TextAnchor.MiddleCenter);
-            hint.color = new Color(1f, 1f, 1f, 0.6f);
-            var rt = hint.rectTransform;
-            rt.anchorMin = new Vector2(0, 0);
-            rt.anchorMax = new Vector2(1, 0);
-            rt.pivot = new Vector2(0.5f, 0);
-            rt.sizeDelta = new Vector2(0, HintBarHeight);
-            rt.anchoredPosition = new Vector2(0, 40);
         }
 
         // ----------------------------------------------------------------
