@@ -76,6 +76,25 @@ namespace Match3
             return text;
         }
 
+        /// <summary>
+        /// 화면 중앙(부모 중심)에 복주머니 프레임 팝업 카드 배경을 깐다. 9-slice라서
+        /// 모서리 매듭 장식은 그대로 유지된 채 가운데만 늘어난다. 반환된 RectTransform을
+        /// 부모로 써서 그 안의 제목/버튼 등을 배치하면 카드와 함께 중앙 정렬된다.
+        /// </summary>
+        public static RectTransform CreatePopupCard(string name, Transform parent, Vector2 size)
+        {
+            var rt = CreateRect(name, parent);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size;
+
+            var image = rt.gameObject.AddComponent<Image>();
+            image.sprite = UIArt.PopupPanel;
+            image.type = Image.Type.Sliced;
+
+            return rt;
+        }
+
         public static Button CreateButton(string name, Transform parent, string label, Vector2 pixelOffset, Vector2? size = null)
         {
             var rt = CreateRect(name, parent);
@@ -85,6 +104,8 @@ namespace Match3
             rt.anchoredPosition = pixelOffset;
 
             var image = rt.gameObject.AddComponent<Image>();
+            image.sprite = UIArt.Button;
+            image.type = Image.Type.Simple;
             image.color = new Color(0.20f, 0.60f, 0.86f);
 
             var button = rt.gameObject.AddComponent<Button>();

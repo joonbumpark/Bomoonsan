@@ -24,6 +24,10 @@ namespace Match3
         private const string GameplaySceneName = "InGameScene";
         private const string NicknamePrefKey = "match3_nickname";
 
+        // 팝업 카드(복주머니 프레임) 배경이 흰색이라, 그 위에 올라가는 글자는
+        // 기본 흰 글씨(UIFactory.CreateText 기본값) 대신 어두운 색을 써야 잘 보인다.
+        private static readonly Color PopupTextColor = new Color(0.24f, 0.16f, 0.08f);
+
         private Match3GameManager gameManager;
         private NetworkClient network;
 
@@ -176,10 +180,12 @@ namespace Match3
         private void BuildMatchmakingPanel(Transform parent)
         {
             matchmakingPanel = CreateFullscreenPanel("MatchmakingPanel", parent, new Color(0, 0, 0, 0.6f));
+            UIFactory.CreatePopupCard("Card", matchmakingPanel.transform, new Vector2(800, 500));
 
             matchmakingText = UIFactory.CreateTextAt(
                 "MatchmakingText", matchmakingPanel.transform, "상대를 찾는 중...", 60, TextAnchor.MiddleCenter,
                 new Vector2(0, 60), new Vector2(900, 150));
+            matchmakingText.color = PopupTextColor;
 
             cancelMatchmakingButton = UIFactory.CreateButton("CancelButton", matchmakingPanel.transform, "취소", new Vector2(0, -100), new Vector2(300, 120));
             cancelMatchmakingButton.onClick.AddListener(OnCancelMatchmakingClicked);
@@ -190,14 +196,17 @@ namespace Match3
         private void BuildResultPanel(Transform parent)
         {
             resultPanel = CreateFullscreenPanel("ResultPanel", parent, new Color(0, 0, 0, 0.75f));
+            UIFactory.CreatePopupCard("Card", resultPanel.transform, new Vector2(900, 650));
 
             resultTitleText = UIFactory.CreateTextAt(
                 "ResultTitle", resultPanel.transform, "게임 종료", 88, TextAnchor.MiddleCenter,
                 new Vector2(0, 180), new Vector2(900, 150));
+            resultTitleText.color = PopupTextColor;
 
             resultDetailText = UIFactory.CreateTextAt(
                 "ResultDetail", resultPanel.transform, "점수: 0", 48, TextAnchor.MiddleCenter,
                 new Vector2(0, 30), new Vector2(900, 100));
+            resultDetailText.color = PopupTextColor;
 
             var menuButton = UIFactory.CreateButton("ResultMenuButton", resultPanel.transform, "메뉴로", new Vector2(0, -150), new Vector2(360, 130));
             menuButton.onClick.AddListener(ShowMenu);
@@ -208,14 +217,17 @@ namespace Match3
         private void BuildLeaderboardPanel(Transform parent)
         {
             leaderboardPanel = CreateFullscreenPanel("LeaderboardPanel", parent, new Color(0, 0, 0, 0.85f));
+            UIFactory.CreatePopupCard("Card", leaderboardPanel.transform, new Vector2(850, 950));
 
-            UIFactory.CreateTextAt(
+            var leaderboardTitle = UIFactory.CreateTextAt(
                 "LeaderboardTitle", leaderboardPanel.transform, "리더보드", 76, TextAnchor.MiddleCenter,
                 new Vector2(0, 300), new Vector2(700, 110));
+            leaderboardTitle.color = PopupTextColor;
 
             leaderboardListText = UIFactory.CreateTextAt(
                 "LeaderboardList", leaderboardPanel.transform, "불러오는 중...", 40, TextAnchor.UpperCenter,
                 new Vector2(0, 10), new Vector2(700, 420));
+            leaderboardListText.color = PopupTextColor;
 
             var closeButton = UIFactory.CreateButton("LeaderboardCloseButton", leaderboardPanel.transform, "닫기", new Vector2(0, -300), new Vector2(300, 120));
             closeButton.onClick.AddListener(ShowMenu);
