@@ -21,6 +21,7 @@ namespace Match3
         public RectTransform RectTransform { get; private set; }
 
         private Match3GameManager manager;
+        private Color tileColor = Color.white;
         private Vector2 dragStartScreenPos;
         private bool swapTriggered;
 
@@ -45,18 +46,33 @@ namespace Match3
         public void SetType(int type, Color color)
         {
             Type = type;
-            Image.color = color;
+            tileColor = color;
+            RefreshVisual();
         }
 
         /// <summary>
-        /// 이 타일에 아이템 블록을 붙이거나(뗀다). 아이템 종류에 맞는 모양(TileArt)으로
-        /// 스프라이트 자체를 바꿔치기한다 - 색상(Image.color)은 그대로 유지되므로
-        /// "이 색의 폭탄/줄삭제/무지개" 임을 한눈에 알 수 있다.
+        /// 이 타일에 아이템 블록을 붙이거나(뗀다). 아이템은 흰색 라인아트(TileArt.For)를
+        /// 색상으로 틴트해서 "이 색의 폭탄/줄삭제/무지개"임을 나타내고, 아이템이 없으면
+        /// 색상별로 이미 그려진 일반 타일 아트(TileArt.NormalFor)를 틴트 없이 그대로 쓴다.
         /// </summary>
         public void SetItem(ItemType item)
         {
             Item = item;
-            Image.sprite = TileArt.For(item);
+            RefreshVisual();
+        }
+
+        private void RefreshVisual()
+        {
+            if (Item == ItemType.None)
+            {
+                Image.sprite = TileArt.NormalFor(Type);
+                Image.color = Color.white;
+            }
+            else
+            {
+                Image.sprite = TileArt.For(Item);
+                Image.color = tileColor;
+            }
         }
 
         public void SetSelected(bool selected)
