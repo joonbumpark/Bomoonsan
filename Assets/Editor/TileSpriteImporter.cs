@@ -46,6 +46,12 @@ namespace Match3.EditorTools
                 // 버튼 크기에 맞춰 그대로 채워 쓴다.
                 importer.maxTextureSize = 512;
             }
+            else if (path.Contains("/Jigsaw/"))
+            {
+                // 직소 퍼즐 사진은 완성 미리보기로 크게 보이기도 하고 16조각으로 잘게
+                // 잘리기도 해서, 다른 타일류(256px)보다 훨씬 높은 해상도가 필요하다.
+                importer.maxTextureSize = 1024;
+            }
             else
             {
                 // 타일류: 실제 표시 크기(셀 ~110px)에 비해 원본이 커서 그대로 두면

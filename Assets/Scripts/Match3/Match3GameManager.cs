@@ -201,7 +201,7 @@ namespace Match3
             rt.sizeDelta = new Vector2(cellSize, cellSize);
             rt.anchoredPosition = CellToLocalPos(col, row);
 
-            view.Init(this, col, row, type, Palette[type]);
+            view.Init(this, col, row, type);
             return view;
         }
 
@@ -277,11 +277,19 @@ namespace Match3
             if (involvesItem)
             {
                 // 아이템 블록은 매치 성립 여부와 상관없이, 옮겨지면(스왑되면) 바로 발동한다.
+                // 무지개(ColorBomb)는 색 구분이 없는 아트라, 대신 드래그해서 맞바꾼 상대
+                // 타일의 색(tileB/tileA.Type)을 지운다 - 자기 자신의 색이 아니다.
                 var cellsToClear = new HashSet<Vector2Int>();
                 if (tileA.Item != ItemType.None)
-                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileA.Col, tileA.Row)));
+                {
+                    int colorOverride = tileA.Item == ItemType.ColorBomb ? tileB.Type : -1;
+                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileA.Col, tileA.Row), colorOverride));
+                }
                 if (tileB.Item != ItemType.None)
-                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileB.Col, tileB.Row)));
+                {
+                    int colorOverride = tileB.Item == ItemType.ColorBomb ? tileA.Type : -1;
+                    cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileB.Col, tileB.Row), colorOverride));
+                }
 
                 yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
             }
@@ -497,7 +505,7 @@ namespace Match3
                     if (view == null)
                         continue;
                     int type = board.GetType(col, row);
-                    view.SetType(type, Palette[type]);
+                    view.SetType(type);
                     view.SetItem(board.GetItem(col, row));
                 }
             }

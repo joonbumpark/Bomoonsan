@@ -7,13 +7,14 @@ using UnityEngine.UI;
 namespace Match3
 {
     /// <summary>
-    /// 16조각(4x4) 직소 퍼즐. 매 라운드마다 씨드로 알록달록한 그림을 하나 만들어 16조각으로
-    /// 잘라 뒤섞어 놓고, 두 조각을 순서대로 탭하면 서로 자리를 바꾼다. 원래 그림대로
-    /// 맞추면 점수를 얻고(적게 움직일수록 보너스가 큼) 곧바로 새 그림으로 다시 시작한다 -
-    /// 제한시간 동안 몇 판이나 맞추는지가 점수가 된다.
+    /// 16조각(4x4) 직소 퍼즐. 미리 준비된 그림 2장(캐릭터 사진)을 번갈아 16조각으로 잘라
+    /// 뒤섞어 놓고, 두 조각을 순서대로 탭하면 서로 자리를 바꾼다. 원래 그림대로 맞추면
+    /// 점수를 얻고(적게 움직일수록 보너스가 큼) 곧바로 다음 그림으로 넘어간다 - 제한시간
+    /// 동안 몇 판이나 맞추는지가 점수가 된다.
     ///
-    /// 그림은 기존 타일 아트를 쓰지 않고 코드로 그때그때 생성한다(방사형 그라데이션 +
-    /// 무작위 색 원 몇 개) - 같은 시드면 두 플레이어가 똑같은 그림/뒤섞임을 받는다.
+    /// 그림 2장은 고정이라(시드로 뒤섞는 순서만 무작위) 라운드를 시작하면 항상 첫 번째
+    /// 그림부터 번갈아 나온다 - 대전에서도 같은 시드면 두 플레이어가 같은 순서로 같은
+    /// 그림/뒤섞임을 받는다.
     /// </summary>
     public class JigsawGameManager : MonoBehaviour, IRoundGame
     {
@@ -21,7 +22,6 @@ namespace Match3
         public int gridSize = 4;
         public float cellSize = 180f;
         public float cellSpacing = 12f;
-        public int textureSize = 480;
 
         [Header("라운드 설정")]
         public float roundDurationSeconds = 90f;
@@ -47,11 +47,17 @@ namespace Match3
         private Text timerText;
         private Text hintText;
 
+        // 번갈아 쓰는 두 사진. Resources.Load는 처음 쓸 때만 하고, 자른 조각 스프라이트도
+        // 이미지당 한 번만 만들어 재사용한다(고정된 사진이라 매 판 다시 자를 필요가 없다).
+        private const int ImageCount = 2;
+        private static readonly string[] ImageResourceNames = { "Sprites/Jigsaw/character_1", "Sprites/Jigsaw/character_2" };
+        private readonly Sprite[] fullSpriteCache = new Sprite[ImageCount];
+        private readonly Sprite[][] pieceSpriteCache = new Sprite[ImageCount][];
+        private int puzzleIndex = -1;
+
         private int pieceCount;
         private int[] displayedPieceId; // slotIndex -> 원래 조각 id (0..pieceCount-1). 전부 identity면 완성.
         private Sprite[] pieceSprites;
-        private Sprite fullSprite;
-        private Texture2D artworkTexture;
 
         private int selectedSlot = -1;
         private int moves;
@@ -80,6 +86,7 @@ namespace Match3
             timeRemaining = roundDurationSeconds;
             lastDisplayedSeconds = -1;
             rng = new System.Random(seed ?? Environment.TickCount);
+            puzzleIndex = -1; // 라운드 시작마다 항상 첫 번째 그림부터 번갈아 나오게 한다.
 
             GenerateNewPuzzle();
             UpdateHud();
@@ -105,33 +112,17 @@ namespace Match3
             UpdateHud();
         }
 
-        private void OnDestroy()
-        {
-            DestroyArtwork();
-        }
-
         // ----------------------------------------------------------------
         // 퍼즐 생성
         // ----------------------------------------------------------------
 
         private void GenerateNewPuzzle()
         {
-            DestroyArtwork();
+            puzzleIndex = (puzzleIndex + 1) % ImageCount;
+            EnsurePieceSpritesLoaded(puzzleIndex);
 
-            artworkTexture = GenerateArtworkTexture(textureSize, rng);
-            fullSprite = Sprite.Create(artworkTexture, new Rect(0, 0, textureSize, textureSize), new Vector2(0.5f, 0.5f));
-            previewImage.sprite = fullSprite;
-
-            int cellPixels = textureSize / gridSize;
-            pieceSprites = new Sprite[pieceCount];
-            for (int row = 0; row < gridSize; row++)
-            {
-                for (int col = 0; col < gridSize; col++)
-                {
-                    var rect = new Rect(col * cellPixels, textureSize - (row + 1) * cellPixels, cellPixels, cellPixels);
-                    pieceSprites[row * gridSize + col] = Sprite.Create(artworkTexture, rect, new Vector2(0.5f, 0.5f));
-                }
-            }
+            pieceSprites = pieceSpriteCache[puzzleIndex];
+            previewImage.sprite = fullSpriteCache[puzzleIndex];
 
             displayedPieceId = new int[pieceCount];
             for (int i = 0; i < pieceCount; i++)
@@ -167,88 +158,29 @@ namespace Match3
         }
 
         /// <summary>
-        /// 방사형 색상 그라데이션(스월) 위에 무작위 색 원 몇 개를 얹은 그림을 만든다.
-        /// 사진 리소스 없이도 16조각 각각이 서로 다른 색/무늬를 갖게 해서 퍼즐로 쓸 만하게 한다.
+        /// 이미지 인덱스별로 최초 1회만 원본 사진을 불러와 16조각으로 잘라 캐싱해둔다.
+        /// 고정된 사진 2장을 번갈아 쓰는 것뿐이라 매 판 다시 자를 필요가 없다.
         /// </summary>
-        private static Texture2D GenerateArtworkTexture(int size, System.Random rng)
+        private void EnsurePieceSpritesLoaded(int index)
         {
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
+            if (pieceSpriteCache[index] != null)
+                return;
 
-            var pixels = new Color32[size * size];
-            float cx = size / 2f;
-            float cy = size / 2f;
-            float hueOffset = (float)rng.NextDouble();
-            float swirl = 1.5f + (float)rng.NextDouble() * 2.5f;
-            float maxRadius = size * 0.72f;
+            var texture = Resources.Load<Texture2D>(ImageResourceNames[index]);
+            fullSpriteCache[index] = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
 
-            for (int y = 0; y < size; y++)
+            int cellPixelsX = texture.width / gridSize;
+            int cellPixelsY = texture.height / gridSize;
+            var sprites = new Sprite[pieceCount];
+            for (int row = 0; row < gridSize; row++)
             {
-                for (int x = 0; x < size; x++)
+                for (int col = 0; col < gridSize; col++)
                 {
-                    float dx = x - cx;
-                    float dy = y - cy;
-                    float angle = Mathf.Atan2(dy, dx);
-                    float radius = Mathf.Sqrt(dx * dx + dy * dy) / maxRadius;
-                    float hue = Mathf.Repeat(hueOffset + angle / (Mathf.PI * 2f) + radius * swirl, 1f);
-                    var color = Color.HSVToRGB(hue, 0.6f, 0.95f);
-                    pixels[y * size + x] = color;
+                    var rect = new Rect(col * cellPixelsX, texture.height - (row + 1) * cellPixelsY, cellPixelsX, cellPixelsY);
+                    sprites[row * gridSize + col] = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f));
                 }
             }
-
-            int circleCount = 5 + rng.Next(4);
-            for (int i = 0; i < circleCount; i++)
-            {
-                float px = (float)rng.NextDouble() * size;
-                float py = (float)rng.NextDouble() * size;
-                float radius = size * (0.07f + (float)rng.NextDouble() * 0.10f);
-                var circleColor = Color.HSVToRGB((float)rng.NextDouble(), 0.75f, 1f);
-
-                int minX = Mathf.Max(0, Mathf.FloorToInt(px - radius));
-                int maxX = Mathf.Min(size - 1, Mathf.CeilToInt(px + radius));
-                int minY = Mathf.Max(0, Mathf.FloorToInt(py - radius));
-                int maxY = Mathf.Min(size - 1, Mathf.CeilToInt(py + radius));
-
-                for (int y = minY; y <= maxY; y++)
-                {
-                    for (int x = minX; x <= maxX; x++)
-                    {
-                        float dist = Mathf.Sqrt((x - px) * (x - px) + (y - py) * (y - py));
-                        if (dist <= radius)
-                            pixels[y * size + x] = circleColor;
-                    }
-                }
-            }
-
-            texture.SetPixels32(pixels);
-            texture.Apply();
-            return texture;
-        }
-
-        private void DestroyArtwork()
-        {
-            if (pieceSprites != null)
-            {
-                foreach (var sprite in pieceSprites)
-                    if (sprite != null)
-                        Destroy(sprite);
-                pieceSprites = null;
-            }
-
-            if (fullSprite != null)
-            {
-                Destroy(fullSprite);
-                fullSprite = null;
-            }
-
-            if (artworkTexture != null)
-            {
-                Destroy(artworkTexture);
-                artworkTexture = null;
-            }
+            pieceSpriteCache[index] = sprites;
         }
 
         // ----------------------------------------------------------------

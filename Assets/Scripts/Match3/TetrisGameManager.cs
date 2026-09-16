@@ -49,16 +49,19 @@ namespace Match3
             new[] { new Vector2Int(2, 0), new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(2, 1) }, // L
         };
         private static readonly int[] PieceBoxSize = { 4, 2, 3, 3, 3, 3, 3 };
-        private static readonly Color[] PieceColors =
+
+        // PieceCellsBase와 같은 순서(I,O,T,S,Z,J,L). 실제 파일은
+        // Assets/Resources/Sprites/Tetris/block_<이름>.png.
+        private static readonly string[] PieceArtNames = { "i", "o", "t", "s", "z", "j", "l" };
+        private static readonly Sprite[] pieceSpriteCache = new Sprite[PieceArtNames.Length];
+
+        private static Sprite PieceSprite(int type)
         {
-            new Color(0.20f, 0.80f, 0.86f), // I 하늘색
-            new Color(0.95f, 0.87f, 0.20f), // O 노랑
-            new Color(0.68f, 0.36f, 0.86f), // T 보라
-            new Color(0.30f, 0.69f, 0.31f), // S 초록
-            new Color(0.91f, 0.30f, 0.24f), // Z 빨강
-            new Color(0.20f, 0.60f, 0.86f), // J 파랑
-            new Color(0.95f, 0.61f, 0.07f), // L 주황
-        };
+            if (pieceSpriteCache[type] == null)
+                pieceSpriteCache[type] = Resources.Load<Sprite>("Sprites/Tetris/block_" + PieceArtNames[type]);
+            return pieceSpriteCache[type];
+        }
+
         private static readonly Color EmptyCellColor = new Color(1f, 1f, 1f, 0.06f);
         private static readonly int[] LineClearScoreTable = { 0, 100, 300, 500, 800 };
 
@@ -534,32 +537,45 @@ namespace Match3
                 for (int c = 0; c < columns; c++)
                 {
                     int val = board[r, c];
-                    cellImages[r, c].color = val == 0 ? EmptyCellColor : PieceColors[val - 1];
+                    var img = cellImages[r, c];
+                    img.sprite = val == 0 ? null : PieceSprite(val - 1);
+                    img.color = val == 0 ? EmptyCellColor : Color.white;
                 }
             }
 
             if (!roundActive)
                 return;
 
-            var color = PieceColors[currentType];
+            var sprite = PieceSprite(currentType);
             foreach (var cell in GetCells(currentType, currentRotation))
             {
                 int br = pivotRow + cell.y;
                 int bc = pivotCol + cell.x;
                 if (br >= 0 && br < rows && bc >= 0 && bc < columns)
-                    cellImages[br, bc].color = color;
+                {
+                    cellImages[br, bc].sprite = sprite;
+                    cellImages[br, bc].color = Color.white;
+                }
             }
         }
 
         private void RedrawNextPreview()
         {
             for (int y = 0; y < 4; y++)
+            {
                 for (int x = 0; x < 4; x++)
+                {
+                    nextPreviewCells[y, x].sprite = null;
                     nextPreviewCells[y, x].color = EmptyCellColor;
+                }
+            }
 
-            var color = PieceColors[nextType];
+            var sprite = PieceSprite(nextType);
             foreach (var cell in PieceCellsBase[nextType])
-                nextPreviewCells[cell.y, cell.x].color = color;
+            {
+                nextPreviewCells[cell.y, cell.x].sprite = sprite;
+                nextPreviewCells[cell.y, cell.x].color = Color.white;
+            }
         }
 
         private void UpdateHud()

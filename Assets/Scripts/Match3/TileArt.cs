@@ -3,20 +3,36 @@ using UnityEngine;
 namespace Match3
 {
     /// <summary>
-    /// 타일/아이템 블록에 쓰는 스프라이트를 이름으로 불러와 캐싱해둔다.
-    /// 실제 파일은 Assets/Resources/Sprites/Tiles/ 아래에 있고, 흰색 채우기 +
-    /// 검은 외곽선의 "색칠 전" 라인아트라서 Image.color로 원하는 색을 입혀 쓴다.
+    /// 타일/아이템 블록에 쓰는 스프라이트를 이름으로 불러와 캐싱해둔다. 전부 이미 완성된
+    /// 색의 이미지라 틴트 없이 그대로 쓴다 - 일반 타일은 Match3GameManager.Palette 색상
+    /// 순서에 맞춘 pouch_&lt;색&gt; 이미지, 아이템(폭탄/줄삭제/무지개)은 색 구분 없는
+    /// 고유 모양 이미지 하나씩이다.
     /// </summary>
     public static class TileArt
     {
+        // Match3GameManager.Palette와 같은 순서(빨강/주황/노랑/초록/파랑/보라)여야 한다.
+        private static readonly string[] ColorNames = { "red", "orange", "yellow", "green", "blue", "purple" };
+
         private static Sprite baseSprite;
         private static Sprite bombSprite;
         private static Sprite rowClearSprite;
         private static Sprite colClearSprite;
         private static Sprite rainbowSprite;
+        private static readonly Sprite[] coloredSprites = new Sprite[ColorNames.Length];
 
-        /// <summary>일반 타일(복주머니 기본형).</summary>
+        /// <summary>일반 타일(복주머니 기본형). Whack/Simon 등 다른 미니게임이 공용으로도 쓴다.</summary>
         public static Sprite Base => baseSprite != null ? baseSprite : (baseSprite = Load("pouch_base"));
+
+        /// <summary>색상 인덱스(0=빨강..5=보라)에 맞는, 이미 색이 입혀진 일반 타일 스프라이트.</summary>
+        public static Sprite NormalFor(int colorType)
+        {
+            if (colorType < 0 || colorType >= ColorNames.Length)
+                return Base;
+
+            return coloredSprites[colorType] != null
+                ? coloredSprites[colorType]
+                : (coloredSprites[colorType] = Load("pouch_" + ColorNames[colorType]));
+        }
 
         /// <summary>3x3 범위를 지우는 폭탄 아이템.</summary>
         public static Sprite Bomb => bombSprite != null ? bombSprite : (bombSprite = Load("item_bomb"));
