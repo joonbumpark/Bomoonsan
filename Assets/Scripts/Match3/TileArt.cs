@@ -3,11 +3,10 @@ using UnityEngine;
 namespace Match3
 {
     /// <summary>
-    /// 타일/아이템 블록에 쓰는 스프라이트를 이름으로 불러와 캐싱해둔다.
-    /// 아이템 아트(Bomb/RowClear/ColClear/Rainbow)는 흰색 채우기 + 검은 외곽선의
-    /// "색칠 전" 라인아트라서 Image.color로 원하는 색을 입혀 쓰고, 일반 타일은
-    /// Match3GameManager.Palette 색상 순서에 맞춰 이미 색이 입혀진 pouch_&lt;색&gt;
-    /// 이미지를 색상 인덱스별로 그대로 쓴다(틴트 없음).
+    /// 타일/아이템 블록에 쓰는 스프라이트를 이름으로 불러와 캐싱해둔다. 전부 이미 완성된
+    /// 색의 이미지라 틴트 없이 그대로 쓴다 - 일반 타일은 Match3GameManager.Palette 색상
+    /// 순서에 맞춘 pouch_&lt;색&gt; 이미지, 아이템(폭탄/줄삭제/무지개)은 색 구분 없는
+    /// 고유 모양 이미지 하나씩이다.
     /// </summary>
     public static class TileArt
     {

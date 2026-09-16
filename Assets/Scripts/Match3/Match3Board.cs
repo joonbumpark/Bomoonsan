@@ -13,7 +13,11 @@ namespace Match3
         LineHorizontal,
         /// <summary>발동 시 자신이 속한 세로 한 줄(열) 전체를 지운다.</summary>
         LineVertical,
-        /// <summary>발동 시 자신과 같은 색상의 타일을 화면 전체에서 지운다.</summary>
+        /// <summary>
+        /// 발동 시 한 색상의 타일을 화면 전체에서 지운다. 드래그로 다른 타일과 스왑해서
+        /// 발동하면 그 상대 타일의 색을 지우고(Match3GameManager.TrySwap), 탭으로 혼자
+        /// 발동하면 자기 자신의 색을 지운다.
+        /// </summary>
         ColorBomb,
         /// <summary>발동 시 자신을 중심으로 3x3 영역을 폭발시켜 지운다.</summary>
         AreaBomb
@@ -325,7 +329,12 @@ namespace Match3
         /// 아이템 블록을 발동시켰을 때 지워질 칸들을 계산해 반환한다(자기 자신 포함).
         /// 실제로 칸을 비우는 것은 Clear()가 담당하며, 이 메서드는 대상 칸 집합만 계산한다.
         /// </summary>
-        public HashSet<Vector2Int> ActivateItem(Vector2Int cell)
+        /// <summary>
+        /// colorClearOverride를 주면(0 이상) ColorBomb가 자기 자신의 색 대신 그 색을 지운다.
+        /// 스왑으로 발동될 때 "드래그해서 맞바꾼 상대 타일의 색"을 넘겨주기 위함이다 -
+        /// Match3GameManager.TrySwap 참고.
+        /// </summary>
+        public HashSet<Vector2Int> ActivateItem(Vector2Int cell, int colorClearOverride = -1)
         {
             var result = new HashSet<Vector2Int> { cell };
             ItemType item = items[cell.x, cell.y];
@@ -343,7 +352,7 @@ namespace Match3
                     break;
 
                 case ItemType.ColorBomb:
-                    int color = grid[cell.x, cell.y];
+                    int color = colorClearOverride >= 0 ? colorClearOverride : grid[cell.x, cell.y];
                     for (int c = 0; c < Width; c++)
                         for (int r = 0; r < Height; r++)
                             if (grid[c, r] == color)

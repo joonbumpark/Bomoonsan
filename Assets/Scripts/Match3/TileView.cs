@@ -21,11 +21,10 @@ namespace Match3
         public RectTransform RectTransform { get; private set; }
 
         private Match3GameManager manager;
-        private Color tileColor = Color.white;
         private Vector2 dragStartScreenPos;
         private bool swapTriggered;
 
-        public void Init(Match3GameManager owner, int col, int row, int type, Color color)
+        public void Init(Match3GameManager owner, int col, int row, int type)
         {
             manager = owner;
             Image = GetComponent<Image>();
@@ -33,7 +32,7 @@ namespace Match3
             RectTransform = (RectTransform)transform;
 
             SetPosition(col, row);
-            SetType(type, color);
+            SetType(type);
             SetItem(ItemType.None);
         }
 
@@ -43,17 +42,16 @@ namespace Match3
             Row = row;
         }
 
-        public void SetType(int type, Color color)
+        public void SetType(int type)
         {
             Type = type;
-            tileColor = color;
             RefreshVisual();
         }
 
         /// <summary>
-        /// 이 타일에 아이템 블록을 붙이거나(뗀다). 아이템은 흰색 라인아트(TileArt.For)를
-        /// 색상으로 틴트해서 "이 색의 폭탄/줄삭제/무지개"임을 나타내고, 아이템이 없으면
-        /// 색상별로 이미 그려진 일반 타일 아트(TileArt.NormalFor)를 틴트 없이 그대로 쓴다.
+        /// 이 타일에 아이템 블록을 붙이거나(뗀다). 아이템(폭탄/줄삭제/무지개)은 색 구분 없이
+        /// 고유 모양의 아트(TileArt.For)를 그대로 쓰고, 아이템이 없으면 색상별로 이미
+        /// 그려진 일반 타일 아트(TileArt.NormalFor)를 쓴다. 둘 다 틴트하지 않는다.
         /// </summary>
         public void SetItem(ItemType item)
         {
@@ -63,16 +61,8 @@ namespace Match3
 
         private void RefreshVisual()
         {
-            if (Item == ItemType.None)
-            {
-                Image.sprite = TileArt.NormalFor(Type);
-                Image.color = Color.white;
-            }
-            else
-            {
-                Image.sprite = TileArt.For(Item);
-                Image.color = tileColor;
-            }
+            Image.sprite = Item == ItemType.None ? TileArt.NormalFor(Type) : TileArt.For(Item);
+            Image.color = Color.white;
         }
 
         public void SetSelected(bool selected)
