@@ -81,6 +81,8 @@ namespace Match3
                 { GameKind.Match3, CreateGame<Match3GameManager>("Match3GameManager") },
                 { GameKind.Whack, CreateGame<WhackGameManager>("WhackGameManager") },
                 { GameKind.Simon, CreateGame<SimonGameManager>("SimonGameManager") },
+                { GameKind.Tetris, CreateGame<TetrisGameManager>("TetrisGameManager") },
+                { GameKind.Jigsaw, CreateGame<JigsawGameManager>("JigsawGameManager") },
             };
             foreach (var game in games.Values)
                 game.RoundEnded += HandleRoundEnded;
@@ -200,27 +202,33 @@ namespace Match3
             leaderboardButton.onClick.AddListener(OnLeaderboardClicked);
         }
 
-        /// <summary>싱글/대전/리더보드 중 뭘 눌렀든, 3가지 게임 중 하나를 고르는 중간 화면.</summary>
+        /// <summary>싱글/대전/리더보드 중 뭘 눌렀든, 5가지 게임 중 하나를 고르는 중간 화면.</summary>
         private void BuildGameSelectPanel(Transform parent)
         {
             gameSelectPanel = CreateFullscreenPanel("GameSelectPanel", parent, new Color(0, 0, 0, 0.6f));
-            UIFactory.CreatePopupCard("Card", gameSelectPanel.transform, new Vector2(800, 750));
+            UIFactory.CreatePopupCard("Card", gameSelectPanel.transform, new Vector2(820, 1080));
 
             var title = UIFactory.CreateTextAt(
                 "GameSelectTitle", gameSelectPanel.transform, "게임 선택", 76, TextAnchor.MiddleCenter,
-                new Vector2(0, 280), new Vector2(700, 110));
+                new Vector2(0, 480), new Vector2(700, 110));
             title.color = PopupTextColor;
 
-            var match3Button = UIFactory.CreateButton("GameSelectMatch3", gameSelectPanel.transform, GameKind.Match3.DisplayName(), new Vector2(0, 120), new Vector2(560, 120));
+            var match3Button = UIFactory.CreateButton("GameSelectMatch3", gameSelectPanel.transform, GameKind.Match3.DisplayName(), new Vector2(0, 300), new Vector2(580, 105));
             match3Button.onClick.AddListener(() => OnGameSelected(GameKind.Match3));
 
-            var whackButton = UIFactory.CreateButton("GameSelectWhack", gameSelectPanel.transform, GameKind.Whack.DisplayName(), new Vector2(0, -20), new Vector2(560, 120));
+            var whackButton = UIFactory.CreateButton("GameSelectWhack", gameSelectPanel.transform, GameKind.Whack.DisplayName(), new Vector2(0, 175), new Vector2(580, 105));
             whackButton.onClick.AddListener(() => OnGameSelected(GameKind.Whack));
 
-            var simonButton = UIFactory.CreateButton("GameSelectSimon", gameSelectPanel.transform, GameKind.Simon.DisplayName(), new Vector2(0, -160), new Vector2(560, 120));
+            var simonButton = UIFactory.CreateButton("GameSelectSimon", gameSelectPanel.transform, GameKind.Simon.DisplayName(), new Vector2(0, 50), new Vector2(580, 105));
             simonButton.onClick.AddListener(() => OnGameSelected(GameKind.Simon));
 
-            var backButton = UIFactory.CreateButton("GameSelectBack", gameSelectPanel.transform, "뒤로", new Vector2(0, -300), new Vector2(300, 110));
+            var tetrisButton = UIFactory.CreateButton("GameSelectTetris", gameSelectPanel.transform, GameKind.Tetris.DisplayName(), new Vector2(0, -75), new Vector2(580, 105));
+            tetrisButton.onClick.AddListener(() => OnGameSelected(GameKind.Tetris));
+
+            var jigsawButton = UIFactory.CreateButton("GameSelectJigsaw", gameSelectPanel.transform, GameKind.Jigsaw.DisplayName(), new Vector2(0, -200), new Vector2(580, 105));
+            jigsawButton.onClick.AddListener(() => OnGameSelected(GameKind.Jigsaw));
+
+            var backButton = UIFactory.CreateButton("GameSelectBack", gameSelectPanel.transform, "뒤로", new Vector2(0, -340), new Vector2(300, 100));
             backButton.onClick.AddListener(ShowMenu);
 
             gameSelectPanel.SetActive(false);

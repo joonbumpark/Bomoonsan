@@ -30,6 +30,8 @@ namespace Match3
         Match3,
         Whack,
         Simon,
+        Tetris,
+        Jigsaw,
     }
 
     public static class GameKindExtensions
@@ -40,6 +42,8 @@ namespace Match3
             GameKind.Match3 => "match3",
             GameKind.Whack => "whack",
             GameKind.Simon => "simon",
+            GameKind.Tetris => "tetris",
+            GameKind.Jigsaw => "jigsaw",
             _ => "match3",
         };
 
@@ -48,6 +52,8 @@ namespace Match3
             GameKind.Match3 => "3매치 퍼즐",
             GameKind.Whack => "복주머니 잡기",
             GameKind.Simon => "순서 기억하기",
+            GameKind.Tetris => "테트리스",
+            GameKind.Jigsaw => "직소 퍼즐",
             _ => kind.ToString(),
         };
     }

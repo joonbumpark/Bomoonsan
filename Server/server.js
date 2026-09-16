@@ -24,7 +24,7 @@ const LEADERBOARD_MAX = 100;
 // 정상적으로 끝나면 어차피 각자 submit_score를 바로 보내니 이 타임아웃까지 안 간다.
 const MATCH_TIMEOUT_MS = 130000;
 
-const GAMES = ['match3', 'whack', 'simon'];
+const GAMES = ['match3', 'whack', 'simon', 'tetris', 'jigsaw'];
 function normalizeGame(game) {
   return GAMES.includes(game) ? game : 'match3';
 }
@@ -35,7 +35,7 @@ function normalizeGame(game) {
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-let leaderboards = { match3: [], whack: [], simon: [] };
+let leaderboards = { match3: [], whack: [], simon: [], tetris: [], jigsaw: [] };
 try {
   const loaded = JSON.parse(fs.readFileSync(LEADERBOARD_FILE, 'utf8'));
   if (Array.isArray(loaded)) {
@@ -70,7 +70,7 @@ function addToLeaderboard(game, name, score) {
 // 매치메이킹 (게임별 큐)
 // ---------------------------------------------------------------------------
 
-const queues = { match3: [], whack: [], simon: [] };
+const queues = { match3: [], whack: [], simon: [], tetris: [], jigsaw: [] };
 const matches = new Map(); // matchId -> { game, players, scores, names, timeout }
 
 function send(ws, obj) {
