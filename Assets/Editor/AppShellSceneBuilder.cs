@@ -28,7 +28,7 @@ namespace Match3.EditorTools
         private const string GameSelectPrefabPath = "Assets/Resources/Prefabs/GameSelectPopup.prefab";
         private const string PlayModePrefabPath = "Assets/Resources/Prefabs/PlayModePopup.prefab";
         private const string MatchmakingPrefabPath = "Assets/Resources/Prefabs/MatchmakingPopup.prefab";
-        private const string ResultPrefabPath = "Assets/Resources/Prefabs/ResultPopup.prefab";
+        private const string ResultPrefabPath = "Assets/Resources/Prefabs/ResultPanel.prefab";
 
         [MenuItem("Bomoonsan/Build App Shell In Scene")]
         public static void Build()

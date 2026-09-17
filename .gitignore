@@ -112,3 +112,7 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Claude Code local session state (worktrees, etc.) and JetBrains Rider project settings
+.claude/
+.idea/
