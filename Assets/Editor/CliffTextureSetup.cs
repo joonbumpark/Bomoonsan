@@ -4,7 +4,7 @@ namespace Mountains
 {
     public static class CliffTextureSetup
     {
-        [MenuItem("Mountains/Assign Cliff Textures")]
+        //[MenuItem("Mountains/Assign Cliff Textures")]
         public static void AssignCliffTextures()
         {
             TerrainTextureAssign.AssignLayer("CliffTextureSetup",

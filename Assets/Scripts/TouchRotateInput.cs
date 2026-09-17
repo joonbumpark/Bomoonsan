@@ -17,6 +17,13 @@ namespace Mountains
 
         public void OnDrag(PointerEventData eventData)
         {
+            // 이벤트/대화 중에는 회전도 막는다 — 누적해두면 잠금이 풀리는 순간 그동안의
+            // 드래그가 한꺼번에 적용되므로, 아예 받지 않고 버린다.
+            if (InputBlocker.IsBlocked)
+            {
+                return;
+            }
+
             _pendingYaw += eventData.delta.x * sensitivity;
         }
 

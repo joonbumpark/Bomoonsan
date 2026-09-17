@@ -13,9 +13,7 @@ MonoBehaviour:
   m_Name: 3.Reward
   m_EditorClassIdentifier: 
   lines:
-  - speakerName: "\uB098\uBB34\uAFBC"
-    portrait: {fileID: 21300000, guid: 6e8b7250279e7eb46adcd6a9e342334a, type: 3}
+  - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
     text: "!!?? \uAE08\uD654 \uC8FC\uBA38\uB2C8\uAC00 \uAE38\uC5D0 \uC788\uB2E4\uB2C8"
-  - speakerName: "\uB098\uBB34\uAFBC"
-    portrait: {fileID: 21300000, guid: 6e8b7250279e7eb46adcd6a9e342334a, type: 3}
+  - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
     text: "\uBB3C\uACE0\uAE30\uAC00 \uC740\uD61C\uB97C \uAC1A\uC740 \uAC83\uC774\uB85C\uAD6C\uB098."

@@ -17,9 +17,16 @@ namespace Mountains
 
         [Header("References")]
         public CanvasGroup canvasGroup;
+        [Tooltip("초상화 모델이 없는 캐릭터용 폴백. CharacterData.portrait(Sprite)를 표시한다.")]
         public Image portraitImage;
+        [Tooltip("CharacterPortraitStage가 실시간으로 그린 3D 초상화가 표시되는 곳.")]
+        public RawImage portraitRenderImage;
+        public Image dialogBackground;
         public TextMeshProUGUI nameText;
         public TextMeshProUGUI bodyText;
+
+        [Tooltip("character가 비어 있을 때 dialogBackground에 쓰이는 기본 색상.")]
+        public Color defaultDialogColor = Color.black;
 
         [Header("Typing")]
         [Tooltip("초당 타이핑되는 글자 수.")]
@@ -34,6 +41,7 @@ namespace Mountains
         int _lineIndex;
         Coroutine _typingRoutine;
         bool _isTyping;
+        bool _warnedMissingPortraitTarget;
         System.Action _onFinished;
 
         void Awake()
@@ -60,21 +68,26 @@ namespace Mountains
             _lineIndex = 0;
             _onFinished = onFinished;
             SetVisible(true);
+            // 대화 중 이동/회전 차단도 이벤트 연출과 같은 잠금을 쓴다 — 예전엔 조작하는
+            // 쪽이 DialogUI.IsShowing을 직접 확인했는데, 이제 잠금을 거는 주체가 여럿이라
+            // (EventTrigger 등) 한 곳으로 모은다. Close()의 Unblock과 반드시 쌍이 맞아야 한다.
+            InputBlocker.Block();
             ShowLine();
         }
 
         void ShowLine()
         {
             var line = _data.lines[_lineIndex];
+            var character = line.character;
 
             if (nameText != null)
             {
-                nameText.text = line.speakerName;
+                nameText.text = character != null ? character.characterName : string.Empty;
             }
-            if (portraitImage != null)
+            UpdatePortrait(character);
+            if (dialogBackground != null)
             {
-                portraitImage.sprite = line.portrait;
-                portraitImage.enabled = line.portrait != null;
+                dialogBackground.color = character != null ? character.dialogColor : defaultDialogColor;
             }
 
             if (_typingRoutine != null)
@@ -82,6 +95,56 @@ namespace Mountains
                 StopCoroutine(_typingRoutine);
             }
             _typingRoutine = StartCoroutine(TypeText(line.text));
+        }
+
+        // 모델이 있는 캐릭터는 실시간으로 그린 3D 초상화를, 없는 캐릭터만 기존 Sprite를 쓴다.
+        // 둘 중 하나만 켜두어야 서로 겹쳐 보이지 않는다.
+        void UpdatePortrait(CharacterData character)
+        {
+            bool wantsModelPortrait = character != null && character.PortraitPrefab != null;
+            RenderTexture portraitTexture = null;
+
+            // portraitRenderImage가 비어 있으면 렌더해봐야 그릴 곳이 없다 — 그 경우엔 아예
+            // 스테이지를 돌리지 않고 기존 Sprite로 폴백한다(초상화가 통째로 사라지는 것보다 낫다).
+            if (wantsModelPortrait && portraitRenderImage != null)
+            {
+                portraitTexture = CharacterPortraitStage.GetOrCreate().Show(character);
+            }
+            else
+            {
+                // 초상화 모델을 안 쓰는 대화에서는 스테이지를 만들지도 않는다.
+                CharacterPortraitStage.HideIfExists();
+                if (wantsModelPortrait)
+                {
+                    WarnMissingPortraitTarget();
+                }
+            }
+
+            if (portraitRenderImage != null)
+            {
+                portraitRenderImage.texture = portraitTexture;
+                portraitRenderImage.enabled = portraitTexture != null;
+            }
+
+            if (portraitImage != null)
+            {
+                portraitImage.sprite = portraitTexture == null && character != null ? character.portrait : null;
+                portraitImage.enabled = portraitImage.sprite != null;
+            }
+        }
+
+        // 3D 초상화를 쓸 캐릭터인데 표시할 자리가 없으면 원인을 한 번만 알려준다 —
+        // 대사 줄마다 찍으면 콘솔이 도배된다.
+        void WarnMissingPortraitTarget()
+        {
+            if (_warnedMissingPortraitTarget)
+            {
+                return;
+            }
+
+            _warnedMissingPortraitTarget = true;
+            Debug.LogWarning("[DialogUI] portraitRenderImage가 비어 있어 3D 초상화를 표시할 수 없습니다. " +
+                "Mountains > Setup Dialog UI를 한 번 실행하세요.");
         }
 
         IEnumerator TypeText(string text)
@@ -142,6 +205,9 @@ namespace Mountains
         {
             SetVisible(false);
             _data = null;
+            // 대화가 끝나면 초상화 카메라도 꺼서 매 프레임 렌더 비용을 0으로 되돌린다.
+            CharacterPortraitStage.HideIfExists();
+            InputBlocker.Unblock();
 
             var callback = _onFinished;
             _onFinished = null;

@@ -1,0 +1,211 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 399d4f4e3c48757458a8cfa8eba78b9a, type: 3}
+  m_Name: Mountain 5_VegetationSettings
+  m_EditorClassIdentifier: 
+  groups:
+  - label: Grass
+    prefabs:
+    - {fileID: 3036827482424969206, guid: 53083e9d6ba91ba4cad309a95b8c8f20, type: 3}
+    - {fileID: 3036827482424969206, guid: 3ade7fcf53c8246418eb3c493d6d2178, type: 3}
+    - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
+    count: 90000
+    minHeight: -0.25
+    maxHeight: 0.55
+    minSlope: 0
+    maxSlope: 0.7
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.65
+    clusterScale: 45
+    clusterSeed: 1
+    alignToNormal: 0
+    uniformScaleRange: {x: 0.7, y: 1.5}
+    heightScaleVariation: 0.2
+    colorVariation: 0.35
+    colorVariantCount: 4
+    castShadows: 0
+    minDistance: 0.4
+    gpuInstanced: 1
+  - label: AlpineTurf
+    prefabs:
+    - {fileID: 3036827482424969206, guid: 3ade7fcf53c8246418eb3c493d6d2178, type: 3}
+    - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
+    count: 30000
+    minHeight: 0.48
+    maxHeight: 0.85
+    minSlope: 0
+    maxSlope: 0.6
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.75
+    clusterScale: 30
+    clusterSeed: 7
+    alignToNormal: 0
+    uniformScaleRange: {x: 0.5, y: 1}
+    heightScaleVariation: 0.2
+    colorVariation: 0.45
+    colorVariantCount: 4
+    castShadows: 0
+    minDistance: 0.5
+    gpuInstanced: 1
+  - label: CliffTuft
+    prefabs:
+    - {fileID: 3036827482424969206, guid: 53083e9d6ba91ba4cad309a95b8c8f20, type: 3}
+    - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
+    count: 1200
+    minHeight: 0.1
+    maxHeight: 0.95
+    minSlope: 0.06
+    maxSlope: 1
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.6
+    clusterScale: 25
+    clusterSeed: 3
+    alignToNormal: 1
+    uniformScaleRange: {x: 0.6, y: 1.2}
+    heightScaleVariation: 0.25
+    colorVariation: 0.4
+    colorVariantCount: 3
+    castShadows: 0
+    minDistance: 1
+    gpuInstanced: 1
+  - label: Rock
+    prefabs:
+    - {fileID: 4140774597986965270, guid: 58cd8dc8c2359174baa15aa31e302c8b, type: 3}
+    - {fileID: 2549054593802932585, guid: bee651b89d6b3ef48b19cfe8a4c9fa42, type: 3}
+    - {fileID: 5597067459296003245, guid: e4f62d5abc5742c4eabbbf96fe54193c, type: 3}
+    count: 900
+    minHeight: 0
+    maxHeight: 1
+    minSlope: 0.02
+    maxSlope: 1
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.5
+    clusterScale: 60
+    clusterSeed: 5
+    alignToNormal: 1
+    uniformScaleRange: {x: 0.6, y: 1.9}
+    heightScaleVariation: 0.25
+    colorVariation: 0.25
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 2
+    gpuInstanced: 1
+  - label: Decoration
+    prefabs:
+    - {fileID: 3811120315536780707, guid: 7917e70f5baa68944aad80732cb08b3d, type: 3}
+    - {fileID: 5984911598340929997, guid: 5228c984e5be7284d8d83c18096254dd, type: 3}
+    count: 1200
+    minHeight: 0
+    maxHeight: 0.45
+    minSlope: 0
+    maxSlope: 0.25
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.85
+    clusterScale: 20
+    clusterSeed: 11
+    alignToNormal: 0
+    uniformScaleRange: {x: 0.8, y: 1.3}
+    heightScaleVariation: 0.15
+    colorVariation: 0.5
+    colorVariantCount: 4
+    castShadows: 0
+    minDistance: 1
+    gpuInstanced: 1
+  - label: Tree
+    prefabs:
+    - {fileID: 5361428799875542787, guid: c31bf8ec8e29cd74f9fb9a970fde7a53, type: 3}
+    - {fileID: 7296054959696050501, guid: 367ab66e2689a8345a8fb8fd14a4f90c, type: 3}
+    - {fileID: 5935278547815300987, guid: e05ae677c7b3bc546bd36b488586fb0c, type: 3}
+    - {fileID: 2479184009378418726, guid: b62637568d07eb141b948ab45ea8c3d4, type: 3}
+    count: 260
+    minHeight: 0
+    maxHeight: 0.5
+    minSlope: 0
+    maxSlope: 0.25
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 1
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.8
+    clusterScale: 55
+    clusterSeed: 2
+    alignToNormal: 0
+    uniformScaleRange: {x: 1.6, y: 3.2}
+    heightScaleVariation: 0.15
+    colorVariation: 0
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 2
+    gpuInstanced: 0
+  - label: Tree2
+    prefabs:
+    - {fileID: 6117071349010126079, guid: d250af4848f51154f9a2bf6a85b60ac2, type: 3}
+    count: 160
+    minHeight: 0.4
+    maxHeight: 0.78
+    minSlope: 0
+    maxSlope: 0.3
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 1
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.8
+    clusterScale: 45
+    clusterSeed: 4
+    alignToNormal: 0
+    uniformScaleRange: {x: 1.6, y: 3}
+    heightScaleVariation: 0.15
+    colorVariation: 0
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 1.5
+    gpuInstanced: 0
+  seed: 0
+  densityMultiplier: 1
+  instancingChunkSize: 25
+  instancingMaxDrawDistance: 150

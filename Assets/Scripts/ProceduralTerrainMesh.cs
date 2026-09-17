@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using Unity.AI.Navigation;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace Mountains
 {
@@ -61,6 +63,7 @@ namespace Mountains
         public float lacunarity => settings != null ? settings.lacunarity : 2f;
         public float heightMultiplier => settings != null ? settings.heightMultiplier : 60f;
         public int seed => settings != null ? settings.seed : 0;
+        public float noiseOffsetScale => settings != null ? settings.noiseOffsetScale : 1f;
         public int smoothingIterations => settings != null ? settings.smoothingIterations : 2;
         public Gradient heightGradient => settings != null ? settings.heightGradient : null;
         public float pathWidth => settings != null ? settings.pathWidth : 4f;
@@ -86,6 +89,21 @@ namespace Mountains
         public string AssetBaseName => !string.IsNullOrEmpty(gameObject.scene.name) ? gameObject.scene.name : gameObject.name;
 
         Mesh _mesh;
+        // Mesh.vertices/normals는 프로퍼티라 호출할 때마다 네이티브 메모리에서 배열을
+        // 통째로 새로 복사한다 — 식생 배치처럼 정점/노멀을 대량으로 조회하는 코드가 이걸
+        // 직접 부르면(예전엔 GetWorldPositionAt/GetNormalAt이 호출마다 4번씩) 인스턴스
+        // 수십만 개 기준으로 GC 할당이 수백만 번 발생해 Play 진입이 몇 초씩 느려진다
+        // (Profiler의 "CopyChannels" 마커로 확인). Generate()가 끝날 때 한 번만 복사해두고
+        // 이후 조회는 전부 이 캐시를 쓴다.
+        Vector3[] _cachedVertices;
+        Vector3[] _cachedNormals;
+
+        // 메시(정점)만으로는 되돌려 계산할 수 없는 "카빙 전" 기준 값들. 빌드나 도메인
+        // 리로드 후에 Generate()를 통째로 다시 돌리지 않고 상태를 복원하려면 이 둘이
+        // 필요해서 씬에 같이 저장한다(Inspector에 노출할 값은 아니라 HideInInspector).
+        [SerializeField, HideInInspector] float _serializedHeightRange;
+        [SerializeField, HideInInspector] float[] _serializedWaterRimHeights;
+
         float[] _pathMaskTexels;
         int _pathMaskTexelsResolution;
         float _heightRange = 1f;
@@ -97,6 +115,7 @@ namespace Mountains
         Vector2 _waterWarpOffsetB;
         List<WaterAreaCache> _waterAreaCaches = new List<WaterAreaCache>();
         Transform _waterContainer;
+        Transform _waterNavContainer;
 
         void Start()
         {
@@ -106,9 +125,168 @@ namespace Mountains
             // 노이즈 샘플링부터 길/물 마스크 텍스처 굽기까지 통째로 반복돼서 Play 진입에만
             // 몇 초가 걸린다(프로파일러로 확인, Start() 자체 시간 약 6.8초). settings를
             // 바꿔서 강제로 다시 구워야 할 때는 Inspector 등에서 Generate()를 직접 호출한다.
-            if (_mesh == null || _mesh.vertexCount != width * length)
+            if (_mesh != null && _mesh.vertexCount == width * length)
             {
-                Generate();
+                return;
+            }
+
+            // 빌드(그리고 도메인 리로드를 켜둔 에디터)에서는 _mesh 같은 비직렬화 필드가
+            // 전부 비어 있어서 예전엔 여기서 Generate()가 통째로 다시 돌았다 — 노이즈
+            // 샘플링부터 길/물 마스크 굽기, 물 표면·가장자리벽·NavMesh 볼륨 재생성까지.
+            // 정작 메시도 물 표면 오브젝트도 이미 씬에 저장돼 있으므로, 저장된 것들을
+            // 그대로 채택하고 런타임에 실제로 필요한 캐시만 복원하면 그 비용이 통째로 없어진다.
+            if (TryRestoreRuntimeState())
+            {
+                return;
+            }
+
+            Generate();
+        }
+
+        // 씬에 저장된 메시/텍스처/설정으로 런타임 조회용 상태만 복원한다. 복원할 수 없는
+        // 상태(메시가 없거나 설정과 안 맞거나, Generate()를 거치지 않아 직렬화 값이 없는
+        // 경우)면 false를 돌려서 호출 측이 Generate()로 넘어가게 한다.
+        bool TryRestoreRuntimeState()
+        {
+            var filter = GetComponent<MeshFilter>();
+            var savedMesh = filter != null ? filter.sharedMesh : null;
+            if (savedMesh == null || savedMesh.vertexCount != width * length)
+            {
+                return false;
+            }
+
+            // 이 값이 비어 있으면 이 스크립트의 저장 로직이 생기기 전에 만들어진 지형이라
+            // 복원에 필요한 정보가 없다 — 한 번 Generate()를 돌려서 채워 넣게 한다.
+            if (_serializedHeightRange <= 0f)
+            {
+                return false;
+            }
+
+            if (!TryRestorePathMaskTexels())
+            {
+                return false;
+            }
+
+            _mesh = savedMesh;
+            _cachedVertices = savedMesh.vertices;
+            _cachedNormals = savedMesh.normals;
+            _heightRange = _serializedHeightRange;
+            _sizeX = Mathf.Max(0.0001f, (width - 1) * cellSize);
+            _sizeZ = Mathf.Max(0.0001f, (length - 1) * cellSize);
+            RefreshWarpOffsets();
+            RestoreWaterAreaCaches();
+            RestoreWaterSurfaceMaskBlocks();
+            return true;
+        }
+
+        // 물 표면 오브젝트(Water_i)는 씬에 저장돼 있지만, 호수별 마스크 텍스처는
+        // MaterialPropertyBlock으로 넘기고 있고 이건 직렬화되지 않는다 — 재생성을
+        // 건너뛰면 _MaskTex가 셰이더 기본값("black")이 되어 clip()에 전부 잘려서 물이
+        // 통째로 안 보인다. 저장해둔 텍스처로 블록만 다시 씌워준다.
+        void RestoreWaterSurfaceMaskBlocks()
+        {
+            if (waterMaskTextures == null || waterMaskTextures.Length == 0)
+            {
+                return;
+            }
+
+            FindOrCreateWaterContainer();
+            if (_waterContainer == null)
+            {
+                return;
+            }
+
+            var block = new MaterialPropertyBlock();
+            for (int i = 0; i < waterMaskTextures.Length; i++)
+            {
+                if (waterMaskTextures[i] == null)
+                {
+                    continue;
+                }
+
+                var child = _waterContainer.Find($"Water_{i}");
+                var meshRenderer = child != null ? child.GetComponent<MeshRenderer>() : null;
+                if (meshRenderer == null)
+                {
+                    continue;
+                }
+
+                block.Clear();
+                block.SetTexture("_MaskTex", waterMaskTextures[i]);
+                meshRenderer.SetPropertyBlock(block);
+            }
+        }
+
+        // GetPathMaskAt(식생 avoidPath)이 쓰는 텍셀 배열을 이미 구워둔 텍스처에서 되읽는다.
+        bool TryRestorePathMaskTexels()
+        {
+            _pathMaskTexels = null;
+            _pathMaskTexelsResolution = 0;
+
+            // 길이 하나도 없으면 마스크 텍스처도 없는 게 정상이다 — 복원 실패가 아니다.
+            if (pathMaskTexture == null)
+            {
+                return paths == null || paths.Length == 0;
+            }
+
+            int resolution = pathMaskTexture.width;
+            if (resolution <= 0 || pathMaskTexture.height != resolution || !pathMaskTexture.isReadable)
+            {
+                return false;
+            }
+
+            var pixels = pathMaskTexture.GetPixels();
+            if (pixels == null || pixels.Length != resolution * resolution)
+            {
+                return false;
+            }
+
+            _pathMaskTexels = new float[pixels.Length];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                _pathMaskTexels[i] = pixels[i].r;
+            }
+            _pathMaskTexelsResolution = resolution;
+            return true;
+        }
+
+        // IsInsideWaterArea(식생 avoidWater)가 쓰는 호수 캐시를 복원한다. 곡선은
+        // 웨이포인트에서 결정론적으로 다시 만들 수 있고(BuildWaterAreaCaches와 완전히
+        // 같은 조건/순서), rimHeight만 카빙 전 값이라 저장해둔 걸 가져다 쓴다.
+        void RestoreWaterAreaCaches()
+        {
+            _waterAreaCaches.Clear();
+            if (waterAreas == null || _serializedWaterRimHeights == null)
+            {
+                return;
+            }
+
+            int index = 0;
+            foreach (var area in waterAreas)
+            {
+                var waypoints = area?.waypoints;
+                if (waypoints == null || waypoints.Length < 3)
+                {
+                    continue;
+                }
+
+                var curve = BuildSmoothClosedPath(waypoints, waterCurveSamplesPerSegment);
+                if (curve.Count < 3)
+                {
+                    continue;
+                }
+
+                if (index >= _serializedWaterRimHeights.Length)
+                {
+                    break;
+                }
+
+                _waterAreaCaches.Add(new WaterAreaCache
+                {
+                    worldCurve = ToWorldSpace(curve),
+                    rimHeight = _serializedWaterRimHeights[index],
+                });
+                index++;
             }
         }
 
@@ -238,6 +416,11 @@ namespace Mountains
             // 이게 없으면 셰이더에서 노멀맵을 입혀도 탄젠트 공간을 못 만들어 라이팅이 깨진다.
             _mesh.RecalculateTangents();
 
+            // vertices는 위에서 이미 만든 로컬 배열을 그대로 재사용(추가 복사 없음), normals는
+            // RecalculateNormals()가 만든 결과라 한 번만 읽어서 캐시해둔다.
+            _cachedVertices = vertices;
+            _cachedNormals = _mesh.normals;
+
             var meshCollider = GetComponent<MeshCollider>();
             meshCollider.sharedMesh = null;
             meshCollider.sharedMesh = _mesh;
@@ -246,6 +429,18 @@ namespace Mountains
             BakePathMaskTexture();
             BuildWaterSurfaces(heights, minHeight);
             BuildEdgeWalls();
+            BuildWaterNavObstacles(heights, minHeight);
+
+            // 빌드/도메인 리로드 후에는 Generate()를 다시 돌리지 않고 씬에 저장된 메시를
+            // 그대로 채택하는데(TryRestoreRuntimeState), 그때 메시만으로는 복원할 수 없는
+            // 두 값을 여기서 같이 저장해둔다 — 둘 다 "카빙 전" 지형 기준이라 카빙이 끝난
+            // 정점에서는 되돌려 계산할 수 없다.
+            _serializedHeightRange = _heightRange;
+            _serializedWaterRimHeights = new float[_waterAreaCaches.Count];
+            for (int i = 0; i < _waterAreaCaches.Count; i++)
+            {
+                _serializedWaterRimHeights[i] = _waterAreaCaches[i].rimHeight;
+            }
         }
 
         public void ApplyGradientTexture()
@@ -527,6 +722,157 @@ namespace Mountains
             box.size = size;
         }
 
+        // 호수는 실제 콜라이더가 없어서 NavMeshSurface를 Physics Colliders 기준으로 구우면
+        // 호수 바닥도 걸어다닐 수 있는 땅으로 잡힌다 — 막아야 한다.
+        //
+        // 처음엔 IsInsideWaterArea(폴리곤+도메인워프 판정, 플레이어 물 회피와 같은 기준)로
+        // 격자를 걸렀는데도 실제 물보다 넓게 막혔다. 원인은 판정 기준 자체가 달랐던 것 —
+        // 화면에 실제로 보이는 물 경계는 폴리곤이 아니라 "카빙된 지형 높이가 물 표면보다
+        // 낮은가"로 정해진다(BuildOneWaterSurface 주석 참고: 물 쿼드를 bbox 전체에 깔아두고
+        // 불투명한 지형이 깊이 버퍼로 그 위를 가리는 방식이라, 호안 블렌드로 파인 정도가
+        // 폴리곤 판정과 정확히 일치하지 않는다). 그래서 여기서도 폴리곤 판정 대신 카빙된
+        // 실제 높이(heights, Generate()가 넘겨줌)를 물 표면 높이와 직접 비교한다 — 렌더링과
+        // 정확히 같은 기준이라 시각적 물 경계와 어긋날 수가 없다.
+        //
+        // NavMeshModifierVolume은 축 정렬 박스뿐이라 물 모양을 그대로 표현할 수 없으므로,
+        // cellSize/4 격자로 잘게 쪼개 칸마다 판정하고(굽은 강도 실제 폭만큼만 막히도록),
+        // 같은 Z줄에서 연속으로 물인 칸은 박스 하나로 합쳐 오브젝트 수를 줄인다.
+        void BuildWaterNavObstacles(float[] heights, float minHeight)
+        {
+            var container = FindOrCreateWaterNavContainer();
+
+            foreach (var existing in container.GetComponentsInChildren<NavMeshModifierVolume>(true))
+            {
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    DestroyImmediate(existing.gameObject);
+                    continue;
+                }
+#endif
+                Destroy(existing.gameObject);
+            }
+
+            if (_waterAreaCaches.Count == 0)
+            {
+                return;
+            }
+
+            // 지형 정점 간격(cellSize, 보통 10)을 그대로 쓰면 좁은 강 폭 정도의 굵기라
+            // 격자 한 칸만 걸쳐도 실제 폭보다 훨씬 넓게 막힌다 — 훨씬 잘게 쪼갠다. 행
+            // 단위로 합치므로 가늘어져도 오브젝트 수가 크게 늘지는 않는다.
+            float cell = Mathf.Max(0.5f, cellSize * 0.25f);
+            int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+            int boxIndex = 0;
+
+            for (int li = 0; li < _waterAreaCaches.Count; li++)
+            {
+                var cache = _waterAreaCaches[li];
+
+                // BuildOneWaterSurface와 같은 이유로 호안 블렌드 폭만큼 여유를 둔다 — 카빙이
+                // 원본 폴리곤 경계 바로 바깥까지 살짝 파고들 수 있어서, 딱 폴리곤 bbox만
+                // 스캔하면 그 가장자리에서 물에 잠긴 칸을 놓칠 수 있다(구멍처럼 걸어다닐
+                // 수 있는 틈이 남는 문제). 실제로 몇 칸이 막힐지는 아래 높이 비교가 알아서
+                // 정확하게 가리므로, 여기서는 스캔 범위만 넉넉히 잡는다.
+                float pad = Mathf.Max(0f, waterShoreBlendWidth);
+                float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
+                foreach (var p in cache.worldCurve)
+                {
+                    minX = Mathf.Min(minX, p.x);
+                    maxX = Mathf.Max(maxX, p.x);
+                    minZ = Mathf.Min(minZ, p.y);
+                    maxZ = Mathf.Max(maxZ, p.y);
+                }
+                minX = Mathf.Clamp(minX - pad, 0f, _sizeX);
+                maxX = Mathf.Clamp(maxX + pad, 0f, _sizeX);
+                minZ = Mathf.Clamp(minZ - pad, 0f, _sizeZ);
+                maxZ = Mathf.Clamp(maxZ + pad, 0f, _sizeZ);
+                if (maxX <= minX || maxZ <= minZ)
+                {
+                    continue;
+                }
+
+                // BuildOneWaterSurface와 정확히 같은 물 표면 높이 — 이보다 낮게 카빙된
+                // 지형만 "실제로 물에 잠긴 자리"다.
+                float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+
+                // 세로 범위는 지형 전체 높이(_heightRange)가 아니라 이 호수 하나가 실제로
+                // 파인 깊이(rimHeight 기준 waterDepth)만큼만 잡는다 — EdgeWalls처럼 지형
+                // 전체를 덮을 필요가 없다(막는 대상이 벽이 아니라 국소적인 호수 바닥이라).
+                float margin = Mathf.Max(2f, waterDepth * 0.5f);
+                float bottom = cache.rimHeight - waterDepth - margin;
+                float top = cache.rimHeight + margin;
+                float centerY = (bottom + top) * 0.5f;
+                float height = top - bottom;
+
+                int xCells = Mathf.Max(1, Mathf.CeilToInt((maxX - minX) / cell));
+                int zCells = Mathf.Max(1, Mathf.CeilToInt((maxZ - minZ) / cell));
+
+                for (int zi = 0; zi < zCells; zi++)
+                {
+                    float zLocal0 = minZ + zi * cell;
+                    float zLocal1 = Mathf.Min(zLocal0 + cell, maxZ);
+                    float zCenter = (zLocal0 + zLocal1) * 0.5f;
+
+                    int runStartXi = -1;
+                    for (int xi = 0; xi <= xCells; xi++)
+                    {
+                        bool inside = false;
+                        if (xi < xCells)
+                        {
+                            float xLocal0 = minX + xi * cell;
+                            float xLocal1 = Mathf.Min(xLocal0 + cell, maxX);
+                            float xCenter = (xLocal0 + xLocal1) * 0.5f;
+                            float terrainHeight = SampleHeightsBilinear(heights, xCenter / cellSize, zCenter / cellSize) - minHeight;
+                            inside = terrainHeight < waterY;
+                        }
+
+                        if (inside && runStartXi < 0)
+                        {
+                            runStartXi = xi;
+                        }
+                        else if (!inside && runStartXi >= 0)
+                        {
+                            float runX0 = minX + runStartXi * cell;
+                            float runX1 = Mathf.Min(minX + xi * cell, maxX);
+                            CreateWaterNavBox(container, boxIndex++, runX0, runX1, zLocal0, zLocal1, centerY, height, notWalkableArea);
+                            runStartXi = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        void CreateWaterNavBox(Transform container, int index, float x0, float x1, float z0, float z1,
+            float centerY, float height, int notWalkableArea)
+        {
+            var go = new GameObject($"WaterNav_{index}", typeof(NavMeshModifierVolume));
+            go.transform.SetParent(container, false);
+            go.transform.localPosition = new Vector3((x0 + x1) * 0.5f, centerY, (z0 + z1) * 0.5f);
+
+            var modifier = go.GetComponent<NavMeshModifierVolume>();
+            modifier.size = new Vector3(x1 - x0, height, z1 - z0);
+            modifier.area = notWalkableArea;
+        }
+
+        Transform FindOrCreateWaterNavContainer()
+        {
+            if (_waterNavContainer != null)
+            {
+                return _waterNavContainer;
+            }
+
+            var existing = transform.Find("WaterNavObstacles");
+            if (existing == null)
+            {
+                var go = new GameObject("WaterNavObstacles");
+                go.transform.SetParent(transform, false);
+                existing = go.transform;
+            }
+            _waterNavContainer = existing;
+            return _waterNavContainer;
+        }
+
         // 월드 좌표를 격자 좌표(0..width-1, 0..length-1)로 바꾼다. GetWorldPositionAt의
         // 역변환 — 지형 격자는 XZ가 뒤틀리지 않은 균일 그리드라 나눗셈 한 번이면 된다.
         // IsInsideWaterArea처럼 격자 좌표를 받는 API를 월드 좌표에서 호출할 때 쓴다.
@@ -614,12 +960,45 @@ namespace Mountains
             var meshRenderer = go.AddComponent<MeshRenderer>();
             meshRenderer.sharedMaterial = material;
             meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            AssignReflectionProbeAnchor(meshRenderer, new Vector3((minX + maxX) * 0.5f, y, (minZ + maxZ) * 0.5f));
 
             // 호수마다 모양이 다른 마스크 텍스처만 개체별로 오버라이드한다(TreeViewOcclusionFader가
             // 알파를 오버라이드하는 것과 같은 기법) — 머티리얼 인스턴스를 호수 개수만큼 만들지 않는다.
             var block = new MaterialPropertyBlock();
             block.SetTexture("_MaskTex", maskTexture);
             meshRenderer.SetPropertyBlock(block);
+        }
+
+        // 유니티는 앵커가 없으면 "렌더러 bounds 중심"이 프로브 박스 안에 들어와야 그 반사
+        // 프로브를 할당한다 — 물 쿼드는 호수 bbox 전체를 덮는 큰 평면이라 중심이 박스 밖으로
+        // 벗어나기 쉽고, 그러면 프로브를 놔둬도 스카이박스 폴백만 비친다. 가장 가까운 프로브의
+        // Transform을 앵커로 물려주면 그 프로브가 항상 선택된다. 인스펙터에서 손으로 넣는
+        // 방법도 있지만, 물 오브젝트는 Generate()마다 파괴 후 재생성되므로 매번 날아간다.
+        void AssignReflectionProbeAnchor(MeshRenderer meshRenderer, Vector3 localCenter)
+        {
+            Vector3 worldCenter = transform.TransformPoint(localCenter);
+
+            Transform nearest = null;
+            float nearestSqr = float.MaxValue;
+            foreach (var probe in FindObjectsOfType<ReflectionProbe>())
+            {
+                if (!probe.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                float sqr = (probe.transform.position - worldCenter).sqrMagnitude;
+                if (sqr < nearestSqr)
+                {
+                    nearestSqr = sqr;
+                    nearest = probe.transform;
+                }
+            }
+
+            if (nearest != null)
+            {
+                meshRenderer.probeAnchor = nearest;
+            }
         }
 
         // BakePathMaskTexture와 같은 굽기 방식이지만, 전체 지형이 아니라 호수 하나의
@@ -645,30 +1024,64 @@ namespace Mountains
             float bboxSizeZ = Mathf.Max(0.0001f, maxZ - minZ);
             float depthRange = Mathf.Max(0.0001f, waterDepth);
 
+            // BuildOneWaterSurface가 물 쿼드를 놓는 높이와 정확히 같아야 한다 — 이 높이보다
+            // 낮게 파인 지형이 곧 "물에 잠긴 자리"다.
+            float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+            // 정점 격자(cellSize) 해상도로 카빙된 지형과 텍셀 해상도 마스크 사이의 보간
+            // 오차만큼 여유를 둬서, 경계에서 한 텍셀씩 모자라 구멍이 나지 않게 한다.
+            float tolerance = Mathf.Max(0.01f, waterDepth * 0.01f);
+
+            var coverage = new bool[resolution * resolution];
+            var belowWater = new bool[resolution * resolution];
+            var depths = new float[resolution * resolution];
+            var queue = new Queue<int>();
+
             for (int ty = 0; ty < resolution; ty++)
             {
                 for (int tx = 0; tx < resolution; tx++)
                 {
+                    int i = ty * resolution + tx;
                     float u = (tx + 0.5f) / resolution;
                     float v = (ty + 0.5f) / resolution;
                     Vector2 worldPos = new Vector2(minX + u * bboxSizeX, minZ + v * bboxSizeZ);
 
-                    float coverage = 0f;
-                    float depthNorm = 0f;
+                    // 깊이는 워핑하지 않은 실좌표에서 읽는다 — ApplyWaterCarving이
+                    // heights[i]를 갱신한 것도 정점의 실좌표 기준이었다.
+                    float carvedHeight = SampleHeightsBilinear(heights, worldPos.x / cellSize, worldPos.y / cellSize) - minHeight;
+                    depths[i] = Mathf.Clamp01((cache.rimHeight - carvedHeight) / depthRange);
+                    belowWater[i] = carvedHeight < waterY + tolerance;
 
-                    // 안/밖 판정은 카빙과 동일하게 워핑된 좌표로 한다.
+                    // 폴리곤 안쪽(카빙과 동일하게 워핑된 좌표로 판정)은 무조건 덮는다 —
+                    // 그 자리 지형이 물 위로 솟아 있으면 어차피 깊이 버퍼가 가려준다.
                     if (IsPointInPolygon(WarpForWaterMask(worldPos), cache.worldCurve))
                     {
-                        coverage = 1f;
-
-                        // 깊이는 워핑하지 않은 실좌표에서 읽는다 — ApplyWaterCarving이
-                        // heights[i]를 갱신한 것도 정점의 실좌표 기준이었다.
-                        float carvedHeight = SampleHeightsBilinear(heights, worldPos.x / cellSize, worldPos.y / cellSize) - minHeight;
-                        depthNorm = Mathf.Clamp01((cache.rimHeight - carvedHeight) / depthRange);
+                        coverage[i] = true;
+                        queue.Enqueue(i);
                     }
-
-                    pixels[ty * resolution + tx] = new Color(coverage, depthNorm, 0f, 1f);
                 }
+            }
+
+            // 폴리곤 바깥이라도 실제로 물 평면 아래까지 파인 자리는 물로 덮어야 한다 —
+            // 카빙은 정점 격자(cellSize) 해상도라 매끄러운 폴리곤 곡선 바깥으로 삐져나오는데,
+            // 마스크가 곡선에서 딱 잘리면 "파였는데 물이 없는 빈 구멍"이 보인다(마스크는
+            // 실제 보이는 물의 상위집합이어야 하고, 정밀한 물가는 깊이 버퍼가 만든다).
+            // 반대로 호수와 이어지지 않은 저지대(bbox 구석의 골짜기 등)로 번지지는 않도록,
+            // 폴리곤에서 출발해 물에 잠긴 텍셀로만 이어붙인다(연결 성분 확장).
+            while (queue.Count > 0)
+            {
+                int i = queue.Dequeue();
+                int tx = i % resolution;
+                int ty = i / resolution;
+
+                ExpandWaterCoverage(tx - 1, ty, resolution, coverage, belowWater, queue);
+                ExpandWaterCoverage(tx + 1, ty, resolution, coverage, belowWater, queue);
+                ExpandWaterCoverage(tx, ty - 1, resolution, coverage, belowWater, queue);
+                ExpandWaterCoverage(tx, ty + 1, resolution, coverage, belowWater, queue);
+            }
+
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = new Color(coverage[i] ? 1f : 0f, depths[i], 0f, 1f);
             }
 
             texture.SetPixels(pixels);
@@ -678,6 +1091,25 @@ namespace Mountains
             UnityEditor.EditorUtility.SetDirty(texture);
             UnityEditor.AssetDatabase.SaveAssets();
 #endif
+        }
+
+        // 물에 잠긴(belowWater) 이웃 텍셀로만 coverage를 넓힌다 — BakeWaterMaskTexture의
+        // 연결 성분 확장에서만 쓴다.
+        static void ExpandWaterCoverage(int tx, int ty, int resolution, bool[] coverage, bool[] belowWater, Queue<int> queue)
+        {
+            if (tx < 0 || ty < 0 || tx >= resolution || ty >= resolution)
+            {
+                return;
+            }
+
+            int i = ty * resolution + tx;
+            if (coverage[i] || !belowWater[i])
+            {
+                return;
+            }
+
+            coverage[i] = true;
+            queue.Enqueue(i);
         }
 
         Texture2D LoadOrCreateWaterMaskTexture(int index)
@@ -767,7 +1199,7 @@ namespace Mountains
             {
                 return transform.position;
             }
-            return transform.TransformPoint(_mesh.vertices[i]);
+            return transform.TransformPoint(_cachedVertices[i]);
         }
 
         // 해당 정점의 월드 공간 노멀. 식생/오브젝트를 지형 경사에 맞춰 세우거나
@@ -778,7 +1210,7 @@ namespace Mountains
             {
                 return Vector3.up;
             }
-            return transform.TransformDirection(_mesh.normals[i]);
+            return transform.TransformDirection(_cachedNormals[i]);
         }
 
         // gx/gz는 0..width-1 / 0..length-1 범위의 "실수" 격자 좌표(정점 사이 값도 허용).
@@ -791,10 +1223,10 @@ namespace Mountains
                 return transform.position;
             }
 
-            Vector3 v00 = _mesh.vertices[z0 * width + x0];
-            Vector3 v10 = _mesh.vertices[z0 * width + x1];
-            Vector3 v01 = _mesh.vertices[z1 * width + x0];
-            Vector3 v11 = _mesh.vertices[z1 * width + x1];
+            Vector3 v00 = _cachedVertices[z0 * width + x0];
+            Vector3 v10 = _cachedVertices[z0 * width + x1];
+            Vector3 v01 = _cachedVertices[z1 * width + x0];
+            Vector3 v11 = _cachedVertices[z1 * width + x1];
             Vector3 local = Vector3.Lerp(Vector3.Lerp(v00, v10, tx), Vector3.Lerp(v01, v11, tx), tz);
             return transform.TransformPoint(local);
         }
@@ -807,10 +1239,10 @@ namespace Mountains
                 return Vector3.up;
             }
 
-            Vector3 n00 = _mesh.normals[z0 * width + x0];
-            Vector3 n10 = _mesh.normals[z0 * width + x1];
-            Vector3 n01 = _mesh.normals[z1 * width + x0];
-            Vector3 n11 = _mesh.normals[z1 * width + x1];
+            Vector3 n00 = _cachedNormals[z0 * width + x0];
+            Vector3 n10 = _cachedNormals[z0 * width + x1];
+            Vector3 n01 = _cachedNormals[z1 * width + x0];
+            Vector3 n11 = _cachedNormals[z1 * width + x1];
             Vector3 local = Vector3.Lerp(Vector3.Lerp(n00, n10, tx), Vector3.Lerp(n01, n11, tx), tz).normalized;
             return transform.TransformDirection(local);
         }
@@ -845,7 +1277,7 @@ namespace Mountains
             {
                 return 0f;
             }
-            return _mesh.vertices[i].y / _heightRange;
+            return _cachedVertices[i].y / _heightRange;
         }
 
         // 경사도. 0=평지, 1=수직절벽. TerrainBlend 셰이더의 슬로프 계산과
@@ -856,7 +1288,7 @@ namespace Mountains
             {
                 return 0f;
             }
-            return 1f - Mathf.Clamp01(_mesh.normals[i].y);
+            return 1f - Mathf.Clamp01(_cachedNormals[i].y);
         }
 
         // 길 마스크(0=길 아님, 1=길 중심). BakePathMaskTexture가 구운 고해상도 텍셀
@@ -1540,8 +1972,11 @@ namespace Mountains
 
             for (int o = 0; o < octaveOffsets.Length; o++)
             {
-                float sampleX = (x + octaveOffsets[o].x) / safeScale * frequency;
-                float sampleZ = (z + octaveOffsets[o].y) / safeScale * frequency;
+                // 오프셋에 noiseOffsetScale을 곱하는 이유는 TerrainGenerationSettings 쪽 주석 참고 —
+                // 해상도를 바꿔도 같은 지형이 나오게 하는 보정값이고, 기본값 1이면 영향이 없다.
+                float offsetScale = noiseOffsetScale;
+                float sampleX = (x + octaveOffsets[o].x * offsetScale) / safeScale * frequency;
+                float sampleZ = (z + octaveOffsets[o].y * offsetScale) / safeScale * frequency;
                 float perlin = Mathf.PerlinNoise(sampleX, sampleZ) * 2f - 1f;
 
                 noiseSum += perlin * amplitude;

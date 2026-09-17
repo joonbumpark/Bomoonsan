@@ -1,8 +1,10 @@
 using Cinemachine;
 using TMPro;
+using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
 
@@ -13,6 +15,39 @@ namespace Mountains
         const string SkyboxMaterialPath = "Assets/Materials/MountainSkybox.mat";
         const string PolytopeSkyboxMaterialPath = "Assets/Polytope Studio/Lowpoly_Environments/Sources/Materials/PT_Skybox_mat.mat";
         const string SunFlareDataPath = "Assets/Settings/SunLensFlare.asset";
+
+        // 하이어라키에서 스폰 포인트/트리거/웨이포인트 등을 손으로 배치할 때, XZ만 대충
+        // 옮겨두고 Y는 이 메뉴(단축키)로 지형 표면에 딱 맞춘다 — WorldToGrid/GetWorldPositionAt은
+        // 이미 GameManager.GetTerrainPosition 등에서 쓰는 것과 같은 지형 높이 조회 API라
+        // 실제 표면과 정확히 일치한다(레이캐스트로 콜라이더를 쏘는 방식보다 안정적).
+        [MenuItem("Mountains/Snap Selected To Terrain Y %#g")]
+        public static void SnapSelectedToTerrainY()
+        {
+            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            if (terrain == null)
+            {
+                Debug.LogWarning("[TerrainSceneSetup] ProceduralTerrainMesh를 찾을 수 없어 스냅을 건너뜁니다.");
+                return;
+            }
+
+            var selected = Selection.transforms;
+            if (selected.Length == 0)
+            {
+                Debug.LogWarning("[TerrainSceneSetup] 선택된 오브젝트가 없습니다.");
+                return;
+            }
+
+            foreach (var t in selected)
+            {
+                Vector2 grid = terrain.WorldToGrid(t.position);
+                Vector3 terrainPos = terrain.GetWorldPositionAt(grid.x, grid.y);
+
+                Undo.RecordObject(t, "Snap To Terrain Y");
+                var pos = t.position;
+                pos.y = terrainPos.y;
+                t.position = pos;
+            }
+        }
 
         [MenuItem("Mountains/Create Procedural Terrain")]
         public static void CreateProceduralTerrain()
@@ -50,17 +85,52 @@ namespace Mountains
 
             SetupSkybox();
             PositionLight(center, maxExtent);
-            var player = SpawnPlayer(terrain);
-            player.tag = "Player";
-            SetupPlayerCamera(player);
-            SetupMobileControls(player);
             ConfigureCameraClipping(maxExtent);
+            EnsureCinemachineBrain();
 
             SetupVegetation(terrain, go);
-            SetupTreeOcclusionFader(player, go);
 
             Selection.activeGameObject = go;
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        }
+
+        // NavMeshSurface/NavMeshModifierVolume이 필요한 물리 지오메트리(지형 MeshCollider,
+        // 나무/바위 CapsuleCollider, EdgeWalls, WaterNavObstacles)가 전부 이 오브젝트의
+        // 자식이라 Collect Objects: Children이면 딱 필요한 것만 모인다 — 플레이어 자신의
+        // CharacterController는 자연히 제외된다.
+        static NavMeshSurface EnsureNavMeshSurface(GameObject terrainObject)
+        {
+            var surface = terrainObject.GetComponent<NavMeshSurface>();
+            if (surface == null)
+            {
+                surface = terrainObject.AddComponent<NavMeshSurface>();
+                surface.collectObjects = CollectObjects.Children;
+                surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
+            }
+            return surface;
+        }
+
+        // 지형을 통째로 재생성하지 않고 NavMesh만 다시 굽고 싶을 때 쓰는 별도 메뉴 —
+        // Setup Dialog UI와 같은 이유로 무거운 Create Procedural Terrain과 분리했다.
+        [MenuItem("Mountains/Bake NavMesh")]
+        public static void BakeNavMesh()
+        {
+            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            if (terrain == null)
+            {
+                Debug.LogWarning("[TerrainSceneSetup] ProceduralTerrainMesh를 찾을 수 없어 NavMesh 베이킹을 건너뜁니다.");
+                return;
+            }
+
+            // WaterNavObstacles(호수 제외 볼륨)는 Generate() 안에서만 다시 계산된다 —
+            // 지형 메시/가장자리벽/물 표면처럼 지형이 직접 소유한 것만 다시 굽고, 플레이어/
+            // 식생/대화 트리거 등 다른 건 건드리지 않는다. 이걸 안 부르면 코드나 물 설정을
+            // 바꿔도 예전에 구워둔 낡은 볼륨 그대로 NavMesh를 굽게 된다.
+            terrain.Generate();
+
+            EnsureNavMeshSurface(terrain.gameObject).BuildNavMesh();
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log("[TerrainSceneSetup] NavMesh를 다시 구웠습니다.");
         }
 
         // 씬 파일을 그냥 복사(Save As, Ctrl+D)하면 GameObject는 다 따라오지만, 지형이
@@ -154,6 +224,10 @@ namespace Mountains
                 vegetation.Scatter();
             }
 
+            // 복제된 씬은 지형/식생이 새로 구워졌으니 NavMesh도 그 씬 기준으로 새로 구워야
+            // 한다(원본 씬의 베이크 결과를 그대로 공유하지 않는다).
+            EnsureNavMeshSurface(terrain.gameObject).BuildNavMesh();
+
             AssetDatabase.SaveAssets();
         }
 
@@ -197,59 +271,10 @@ namespace Mountains
             terrain.settings = settings;
         }
 
-        static GameObject SpawnPlayer(ProceduralTerrainMesh terrain)
-        {
-            var movement = Object.FindObjectOfType<CharacterMovement>();
-            var player = movement != null ? movement.gameObject : GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            player.name = "Player";
-
-            var capsuleCollider = player.GetComponent<CapsuleCollider>();
-            if (capsuleCollider != null)
-            {
-                Object.DestroyImmediate(capsuleCollider);
-            }
-
-            var controller = player.GetComponent<CharacterController>();
-            if (controller == null)
-            {
-                controller = player.AddComponent<CharacterController>();
-            }
-
-            if (movement == null)
-            {
-                movement = player.AddComponent<CharacterMovement>();
-            }
-
-            if (Camera.main != null)
-            {
-                movement.cameraTransform = Camera.main.transform;
-            }
-
-            // 호수 폴리곤 판정으로 물 진입을 막으려면 지형 참조가 필요하다.
-            movement.terrain = terrain;
-
-            Vector3 surfacePoint = terrain.GetVertexWorldPosition(terrain.width / 2, terrain.length / 2);
-            float groundOffset = controller.height * 0.5f - controller.center.y + controller.skinWidth;
-
-            // CharacterController가 붙은 채로 transform.position을 직접 바꾸면(순간이동),
-            // 컨트롤러 내부 상태가 새 위치를 즉시 인식하지 못해 isGrounded가 한동안 false로
-            // 나온다 — 특히 재생 중에 지형을 다시 만들면 그 사이 MeshCollider도 리베이크되는
-            // 타이밍이라 겹쳐서 플레이어가 훅 떨어지는 것처럼 보인다. enabled를 껐다 켜서
-            // 컨트롤러가 새 위치 기준으로 즉시 다시 인식하게 하고, 누적된 낙하 속도도 지운다.
-            controller.enabled = false;
-            player.transform.position = surfacePoint + Vector3.up * groundOffset;
-            controller.enabled = true;
-
-            if (movement != null)
-            {
-                movement.ResetVelocity();
-            }
-
-            EditorUtility.SetDirty(player);
-            return player;
-        }
-
-        static void SetupPlayerCamera(GameObject player)
+        // Player/NPC 생성 시 캐릭터를 Main Virtual Camera가 실제로 몰 수 있도록 카메라
+        // 쪽 상태만 정리한다(플레이어 Follow/LookAt 연결은 이제 CharacterManager.CreatePlayer가
+        // 런타임에 한다) — 지형을 새로 만들 때마다 Main Camera가 항상 이 상태인 걸 보장한다.
+        static void EnsureCinemachineBrain()
         {
             var cam = Camera.main;
             if (cam == null) return;
@@ -266,100 +291,14 @@ namespace Mountains
             // Unity의 범용 정리 API로 없앤다.
             GameObjectUtility.RemoveMonoBehavioursWithMissingScript(cam.gameObject);
 
-            var playerCamera = cam.GetComponent<PlayerCamera>();
-            if (playerCamera == null)
-            {
-                playerCamera = cam.gameObject.AddComponent<PlayerCamera>();
-            }
-
-            playerCamera.player = player.transform;
-            playerCamera.playerMovement = player.GetComponent<CharacterMovement>();
-            playerCamera.SetMode(PlayerCamera.Mode.FollowPlayer);
-
-            // 평상시 카메라는 여전히 PlayerCamera가 직접 몬다. CinemachineBrain은 여기서
-            // 되살리지만 씬에 활성화된 Virtual Camera가 없는 한 아무 것도 하지 않는다 —
-            // DialogTrigger가 이벤트 재생 중에만 전용 vcam을 잠깐 켜서 카메라를 가로챈다.
+            // CinemachineBrain이 있어야 씬에 미리 배치해둔 "Main Virtual Camera"가 실제로
+            // Main Camera를 몬다. DialogTrigger의 이벤트 vcam 전환도 같은 Brain을 거친다.
             if (cam.GetComponent<CinemachineBrain>() == null)
             {
                 cam.gameObject.AddComponent<CinemachineBrain>();
             }
 
             EditorUtility.SetDirty(cam.gameObject);
-        }
-
-        // 씬에 미리 배치해둔 Canvas/Fixed Joystick(Joystick Pack)을 찾아서 이동·회전
-        // 스크립트에 연결한다. Canvas나 조이스틱이 없으면(모바일 컨트롤을 아직 안 붙인
-        // 씬이면) 경고만 남기고 나머지 설정은 그대로 진행한다 — LoadAssetPrefab과 같은
-        // "없으면 경고, 계속 진행" 패턴.
-        static void SetupMobileControls(GameObject player)
-        {
-            var canvas = Object.FindObjectOfType<Canvas>();
-            if (canvas == null)
-            {
-                Debug.LogWarning("[TerrainSceneSetup] Canvas를 찾을 수 없어 모바일 컨트롤 연결을 건너뜁니다.");
-                return;
-            }
-
-            var movement = player.GetComponent<CharacterMovement>();
-
-            var joystickObject = GameObject.Find("Fixed Joystick");
-            if (joystickObject != null)
-            {
-                // 엉뚱한 부모(예: 식생 컨테이너) 밑에 있으면 Canvas 밑으로 옮긴다 — UI라
-                // false로 넘겨서 로컬 anchoredPosition을 그대로 유지한다.
-                if (!joystickObject.transform.IsChildOf(canvas.transform))
-                {
-                    joystickObject.transform.SetParent(canvas.transform, false);
-                }
-
-                var joystick = joystickObject.GetComponent<Joystick>();
-                if (joystick != null && movement != null)
-                {
-                    movement.moveJoystick = joystick;
-                }
-                EditorUtility.SetDirty(joystickObject);
-            }
-            else
-            {
-                Debug.LogWarning("[TerrainSceneSetup] 'Fixed Joystick'을 찾을 수 없어 조이스틱 이동 연결을 건너뜁니다.");
-            }
-
-            var dragCatcher = FindOrCreateDragCatcher(canvas);
-            var touchRotate = dragCatcher.GetComponent<TouchRotateInput>();
-            touchRotate.player = player.transform;
-
-            EditorUtility.SetDirty(canvas.gameObject);
-        }
-
-        // 화면 전체를 덮는 투명 UI Image + TouchRotateInput. 조이스틱보다 하이어라키
-        // 앞쪽(= 레이캐스트 우선순위상 뒤쪽)에 둬서, 조이스틱 영역의 드래그는 조이스틱이
-        // 먼저 가로채고 나머지 화면만 회전 드래그로 잡히게 한다.
-        static GameObject FindOrCreateDragCatcher(Canvas canvas)
-        {
-            var existing = canvas.transform.Find("RotateDragCatcher");
-            GameObject go;
-            if (existing != null)
-            {
-                go = existing.gameObject;
-            }
-            else
-            {
-                go = new GameObject("RotateDragCatcher", typeof(RectTransform), typeof(Image), typeof(TouchRotateInput));
-                go.transform.SetParent(canvas.transform, false);
-
-                var rect = go.GetComponent<RectTransform>();
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.one;
-                rect.offsetMin = Vector2.zero;
-                rect.offsetMax = Vector2.zero;
-
-                var image = go.GetComponent<Image>();
-                image.color = new Color(0f, 0f, 0f, 0f);
-                image.raycastTarget = true;
-            }
-
-            go.transform.SetAsFirstSibling();
-            return go;
         }
 
         // 대화 UI만 따로 배선하는 메뉴. "Create Procedural Terrain"은 지형을 통째로
@@ -376,15 +315,24 @@ namespace Mountains
         // Inspector에서 튜닝한 값(charsPerSecond 등)을 그대로 두고 아무것도 건드리지 않는다.
         static void EnsureDialogUI()
         {
+            // 이미 만들어진 대화창은 Inspector에서 튜닝한 값을 그대로 두되, 나중에 추가된
+            // 자식(3D 초상화용 RawImage)만 빠져 있으면 보충한다 — 그러지 않으면 기존 씬은
+            // 대화창을 통째로 지우고 다시 만들어야만 새 기능을 쓸 수 있다.
+            //
+            // 이름("DialogUI")으로 찾지 않는 이유: 이 프로젝트의 대화창은 씬에 "Dialog"라는
+            // 이름의 프리팹 인스턴스로 놓여 있다. 이름 규칙에 기대면 멀쩡히 있는 대화창을
+            // 못 찾고 두 번째 대화창을 새로 만들어버린다.
+            var existingDialogs = Object.FindObjectsOfType<DialogUI>(true);
+            if (existingDialogs.Length > 0)
+            {
+                PatchExistingDialogUI(existingDialogs[0]);
+                return;
+            }
+
             var canvas = Object.FindObjectOfType<Canvas>();
             if (canvas == null)
             {
                 Debug.LogWarning("[TerrainSceneSetup] Canvas를 찾을 수 없어 대화창 설정을 건너뜁니다.");
-                return;
-            }
-
-            if (canvas.transform.Find("DialogUI") != null)
-            {
                 return;
             }
 
@@ -447,6 +395,7 @@ namespace Mountains
             dialogUi.portraitImage = portraitImage;
             dialogUi.nameText = nameText;
             dialogUi.bodyText = bodyText;
+            EnsurePortraitRenderImage(dialogUi);
 
             var canvasGroup = root.GetComponent<CanvasGroup>();
             canvasGroup.alpha = 0f;
@@ -454,6 +403,96 @@ namespace Mountains
             canvasGroup.blocksRaycasts = false;
 
             EditorUtility.SetDirty(root);
+        }
+
+        // 씬의 대화창이 프리팹 인스턴스면(지금이 그렇다: Assets/Dialog/DialogUI.prefab) 인스턴스에
+        // 자식을 더해봐야 그 씬에만 남는 오버라이드가 된다 — 프리팹 원본을 고쳐서 이 프리팹을
+        // 쓰는 모든 씬이 한 번에 새 UI를 갖게 한다.
+        static void PatchExistingDialogUI(DialogUI sceneDialog)
+        {
+            string prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(sceneDialog.gameObject);
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                EnsurePortraitRenderImage(sceneDialog);
+                EditorSceneManager.MarkSceneDirty(sceneDialog.gameObject.scene);
+                return;
+            }
+
+            var contents = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                var dialog = contents.GetComponentInChildren<DialogUI>(true);
+                if (dialog == null)
+                {
+                    Debug.LogWarning($"[TerrainSceneSetup] {prefabPath}에서 DialogUI를 찾지 못했습니다.");
+                    return;
+                }
+
+                if (dialog.portraitRenderImage != null)
+                {
+                    return;
+                }
+
+                EnsurePortraitRenderImage(dialog);
+                PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+                Debug.Log($"[TerrainSceneSetup] {prefabPath}에 3D 초상화용 RawImage(PortraitRender)를 추가했습니다.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
+        }
+
+        // CharacterPortraitStage가 그린 RenderTexture를 표시할 RawImage. 기존 Sprite 초상화와
+        // 같은 자리에 두되, RenderTexture가 정사각형이라 세로로 늘어난 칸에 그대로 채우면
+        // 찌그러진다 — 폭에 맞춘 정사각형 영역으로 잡는다.
+        static void EnsurePortraitRenderImage(DialogUI dialogUi)
+        {
+            if (dialogUi == null || dialogUi.portraitRenderImage != null)
+            {
+                return;
+            }
+
+            var sourceRect = dialogUi.portraitImage != null ? dialogUi.portraitImage.rectTransform : null;
+            var parent = sourceRect != null ? sourceRect.parent : dialogUi.transform.Find("Panel");
+            if (parent == null)
+            {
+                Debug.LogWarning("[TerrainSceneSetup] 대화창에서 초상화를 놓을 자리를 찾지 못해 " +
+                    "3D 초상화 RawImage를 건너뜁니다.");
+                return;
+            }
+
+            var found = parent.Find("PortraitRender");
+            var raw = found != null ? found.GetComponent<RawImage>() : null;
+            if (raw == null)
+            {
+                var go = new GameObject("PortraitRender", typeof(RectTransform), typeof(RawImage));
+                go.transform.SetParent(parent, false);
+
+                raw = go.GetComponent<RawImage>();
+                raw.raycastTarget = false; // 탭 감지는 DialogUI 루트 Image가 전담한다.
+                ConfigurePortraitRenderRect(raw.rectTransform, sourceRect);
+            }
+
+            dialogUi.portraitRenderImage = raw;
+            EditorUtility.SetDirty(dialogUi);
+        }
+
+        static void ConfigurePortraitRenderRect(RectTransform rect, RectTransform source)
+        {
+            float width = 220f;
+            Vector2 position = new Vector2(20f, 0f);
+            if (source != null)
+            {
+                width = source.rect.width > 1f ? source.rect.width : Mathf.Abs(source.sizeDelta.x);
+                position = source.anchoredPosition;
+            }
+
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.sizeDelta = new Vector2(width, width);
+            rect.anchoredPosition = position;
         }
 
         static TextMeshProUGUI CreateDialogText(Transform parent, string name, float fontSize, FontStyles style)
@@ -467,30 +506,6 @@ namespace Mountains
             text.color = Color.white;
             text.raycastTarget = false;
             return text;
-        }
-
-        // 나무 프리팹엔 Collider가 없어 레이캐스트로 카메라-플레이어 사이를 가리는지
-        // 감지할 수 없다 — 위치 기반으로 판정해서 가려지면 반투명하게 페이드시키는
-        // TreeViewOcclusionFader를 Main Camera에 붙인다. VegetationScatter가 만든
-        // Tree 인스턴스 목록을 참조해야 하므로 SetupVegetation 이후에 호출해야 한다.
-        static void SetupTreeOcclusionFader(GameObject player, GameObject terrainObject)
-        {
-            var cam = Camera.main;
-            if (cam == null) return;
-
-            var fader = cam.GetComponent<TreeViewOcclusionFader>();
-            if (fader == null)
-            {
-                fader = cam.gameObject.AddComponent<TreeViewOcclusionFader>();
-            }
-
-            var scatter = terrainObject.GetComponent<VegetationScatter>();
-            fader.player = player.transform;
-            fader.vegetationScatter = scatter;
-
-            fader.CollectTrees();
-
-            EditorUtility.SetDirty(cam.gameObject);
         }
 
         // 기본 Far Clip Plane(1000)은 예전 작은 씬 기준값이라, 지금처럼 넓은 지형(대각선
@@ -894,7 +909,8 @@ namespace Mountains
 
         // TerrainBlend 셰이더는 월드 Y 높이를 직접 비교해서 Grass/Snow를 나누므로,
         // 지형이 실제로 생성한 높이 범위(최저 0 ~ 최고 HeightRange)를 매번 동기화해줘야 한다.
-        static void ApplyHeightRangeToMaterial(Material material, ProceduralTerrainMesh terrain)
+        // TerrainControlPanel(통합 창)에서도 지형만 재생성한 뒤 같은 보정이 필요해서 internal로 열어둔다.
+        internal static void ApplyHeightRangeToMaterial(Material material, ProceduralTerrainMesh terrain)
         {
             if (!material.HasProperty("_MinHeight"))
             {

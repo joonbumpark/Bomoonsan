@@ -17,9 +17,9 @@ namespace Mountains
 
         [Header("이벤트 카메라")]
         [Tooltip("비워두면 카메라를 바꾸지 않고 대화만 재생한다. 지정하면 대화 중엔 이 " +
-            "가상 카메라로 전환되고 대화가 끝나면 PlayerCamera가 다시 플레이어를 따라간다. " +
-            "씬에 배치할 때 반드시 비활성 상태로 둘 것 — 켜진 채로 두면 Brain이 활성화된 " +
-            "vcam을 바로 live로 잡기 때문에 트리거 전에도 카메라를 가로챈다.")]
+            "가상 카메라로 전환되고 대화가 끝나면 평상시 카메라(Main Virtual Camera)로 " +
+            "돌아간다. 씬에 배치할 때 반드시 비활성 상태로 둘 것 — 켜진 채로 두면 Brain이 " +
+            "활성화된 vcam을 바로 live로 잡기 때문에 트리거 전에도 카메라를 가로챈다.")]
         public CinemachineVirtualCamera eventCamera;
         [Tooltip("이벤트 동안 이 값으로 Priority를 올린다.")]
         public int eventCameraPriority = 20;
@@ -58,10 +58,6 @@ namespace Mountains
         {
             if (eventCamera != null)
             {
-                if (PlayerCamera.Instance != null)
-                {
-                    PlayerCamera.Instance.enabled = false;
-                }
                 eventCamera.Priority = eventCameraPriority;
                 eventCamera.gameObject.SetActive(true);
             }
@@ -71,17 +67,15 @@ namespace Mountains
 
         void EndEvent()
         {
-            // eventCamera가 계속 켜져 있는 동안 PlayerCamera까지 같이 켜두면 둘 다 매
-            // 프레임 Main Camera Transform을 덮어써서 화면이 튄다 — deactivateEventCameraOnEnd가
-            // false일 땐(스플라인 이동 등 이어지는 연출이 같은 카메라를 계속 쓸 때) 카메라
-            // 복귀도 같이 미루고, 그 연출이 끝난 뒤 호출 측에서 직접 처리하게 둔다.
+            // 평상시 카메라(Main Virtual Camera)도 CinemachineVirtualCamera라 별도로
+            // 꺼둘 필요가 없다 — eventCamera의 Priority가 항상 더 높게 잡혀 있어서
+            // CinemachineBrain이 알아서 우선순위 높은 쪽으로 블렌드한다.
+            // deactivateEventCameraOnEnd가 false일 땐(스플라인 이동 등 이어지는 연출이
+            // 같은 카메라를 계속 써야 할 때) 끄는 것 자체를 미루고, 그 연출이 끝난 뒤
+            // 호출 측에서 직접 처리하게 둔다.
             if (eventCamera != null && deactivateEventCameraOnEnd)
             {
                 eventCamera.gameObject.SetActive(false);
-                if (PlayerCamera.Instance != null)
-                {
-                    PlayerCamera.Instance.enabled = true;
-                }
             }
 
             onEventComplete?.Invoke();

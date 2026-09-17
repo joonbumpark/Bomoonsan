@@ -182,9 +182,17 @@ namespace Mountains
             }
         }
 
-        // 나무의 원래 커스텀 셰이더(바람 애니메이션 포함)는 건드리지 않고, URP 기본
-        // Lit 셰이더로 된 반투명 버전을 원본 텍스처(_BaseTexture)만 물려받아 새로
-        // 만든다. 같은 원본 머티리얼을 쓰는 나무는 이 결과를 공유한다.
+        // 나무의 원래 커스텀 셰이더(바람 애니메이션 포함)는 건드리지 않고, 전용
+        // Mountains/TreeFade 셰이더로 된 반투명 버전을 원본 텍스처(_BaseTexture)만
+        // 물려받아 새로 만든다. 같은 원본 머티리얼을 쓰는 나무는 이 결과를 공유한다.
+        //
+        // URP 기본 Lit로 만들었을 땐 메인 패스의 블렌드 알파와 그림자 캐스터의
+        // 알파클립이 같은 값(텍스처알파 x _BaseColor.a)을 공유해서, 페이드 진행도가
+        // _BaseColor.a에 실리는 순간 그림자까지 클립돼 사라지거나(컷오프를 낮게 잡아도
+        // fadedAlpha 밑으로 내려가면 재발) 원본과 다른 뭉툭한 모양이 됐다. TreeFade는
+        // 그림자 클립(텍스처 알파 vs _ShadowAlphaCutoff)과 메인 블렌드 알파를 완전히
+        // 분리해서, 원본 셰이더처럼 그림자가 페이드 진행도와 무관하게 항상 같은 잎
+        // 모양을 유지한다.
         Material GetOrCreateFadeMaterial(Material source)
         {
             if (source == null)
@@ -197,7 +205,7 @@ namespace Mountains
                 return cached;
             }
 
-            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            var shader = Shader.Find("Mountains/TreeFade");
             var fadeMat = new Material(shader) { name = source.name + " (Fade)" };
 
             if (source.HasProperty("_BaseTexture"))
@@ -205,16 +213,15 @@ namespace Mountains
                 fadeMat.SetTexture("_BaseMap", source.GetTexture("_BaseTexture"));
             }
 
-            // Surface Type을 코드로 Transparent(Alpha Blend)로 설정 — Inspector에서
-            // Surface Type 드롭다운을 Transparent로 바꿀 때와 동일한 프로퍼티 조합.
-            fadeMat.SetFloat("_Surface", 1f);
-            fadeMat.SetFloat("_Blend", 0f);
-            fadeMat.SetOverrideTag("RenderType", "Transparent");
-            fadeMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            fadeMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            fadeMat.SetInt("_ZWrite", 0);
-            fadeMat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            fadeMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            // 원본(PT_Vegetation_Foliage_Shader)의 잎 컷아웃은 _LeavesThickness로
+            // 계산된다(Alpha = step(texAlpha, 1 - _LeavesThickness)) — 그 경계를
+            // 그대로 옮긴다. 줄기 등 이 프로퍼티가 없는 재질은 사실상 클립이 안 걸리는
+            // 낮은 값을 기본으로 둔다.
+            float shadowCutoff = source.HasProperty("_LeavesThickness")
+                ? 1f - source.GetFloat("_LeavesThickness")
+                : 0.01f;
+            fadeMat.SetFloat("_ShadowAlphaCutoff", shadowCutoff);
+
             fadeMat.enableInstancing = true;
 
             _fadeMaterialCache[source] = fadeMat;

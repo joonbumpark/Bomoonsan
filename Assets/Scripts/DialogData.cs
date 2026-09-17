@@ -2,12 +2,12 @@ using UnityEngine;
 
 namespace Mountains
 {
-    // 대화 한 줄. 화자가 바뀌는 대화도 표현할 수 있도록 이름/초상화를 줄마다 따로 둔다.
+    // 대화 한 줄. 화자 정보(이름/초상화/대화창 색상)는 CharacterData 에셋 하나로 묶어서
+    // 재사용한다 — 화자가 바뀌는 대화는 줄마다 다른 CharacterData를 참조하면 된다.
     [System.Serializable]
     public class DialogLine
     {
-        public string speakerName;
-        public Sprite portrait;
+        public CharacterData character;
         [TextArea(2, 5)] public string text;
     }
 

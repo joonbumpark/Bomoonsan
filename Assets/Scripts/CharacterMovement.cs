@@ -1,10 +1,9 @@
-using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace Mountains
 {
-    [RequireComponent(typeof(CharacterController))]
+    [RequireComponent(typeof(NavMeshAgent))]
     public class CharacterMovement : MonoBehaviour
     {
         public float moveSpeed = 5f;
@@ -15,7 +14,6 @@ namespace Mountains
         [Tooltip("회전 각속도가 가속/감속하는 데 걸리는 대략적인 시간(초). 작을수록 더 " +
             "즉각적으로 반응하고, 클수록 더 느긋하게 붙는다.")]
         public float rotationSmoothTime = 0.15f;
-        public float gravity = -20f;
         public Transform cameraTransform;
 
         [Tooltip("입력 방향이 지금 바라보는 방향에서 이 각도 이내로만 흔들리면 회전을 " +
@@ -23,36 +21,33 @@ namespace Mountains
             "조이스틱의 작은 방향 흔들림에도 매 프레임 조금씩 돌아서 카메라가 어지럽게 흔들린다.")]
         public float rotationDeadzoneAngle = 15f;
 
-        [Tooltip("모바일 캔버스의 Fixed Joystick. 비워두면 키보드 입력만 쓴다.")]
+        [Tooltip("모바일 캔버스의 조이스틱(Fixed/Floating 등). 비워두면 키보드 입력만 쓴다.")]
         public Joystick moveJoystick;
 
-        [Tooltip("호수 영역 판정을 위한 지형 참조. 비워두면 물 차단만 꺼지고 나머지는 " +
-            "그대로 동작한다. 호수는 사각형이 아니라 임의의 폴리곤이라 콜라이더 대신 " +
-            "ProceduralTerrainMesh.IsInsideWaterArea 판정으로 막는다.")]
-        public ProceduralTerrainMesh terrain;
-
-        CharacterController _controller;
-        Animator _animator;
-        float _verticalVelocity;
+        NavMeshAgent _agent;
         float _yawAngularVelocity;
 
         void Awake()
         {
-            _controller = GetComponent<CharacterController>();
+            _agent = GetComponent<NavMeshAgent>();
+            // 회전은 지금처럼 SmoothDampAngle로 직접 제어한다(아래) — NavMeshAgent가 이동
+            // 속도 기준으로 자체 회전까지 해버리면 이 회전 데드존/스무딩과 충돌한다. 화면
+            // 드래그로 직접 도는 TouchRotateInput도 이걸 꺼야 방해받지 않는다.
+            _agent.updateRotation = false;
+
             if (cameraTransform == null && Camera.main != null)
             {
                 cameraTransform = Camera.main.transform;
             }
-
-            _animator = GetComponentInChildren<Animator>(); // Animator 컴포넌트 가져오기
         }
 
         void Update()
         {
-            // 대화창 등 이벤트가 재생 중일 때는 입력을 완전히 무시한다. 터치 자체는
-            // DialogUI의 전체화면 캐처가 UI 레이캐스트 우선순위로 이미 가로채지만,
-            // 키보드 입력(Input.GetAxisRaw)은 UI를 거치지 않아 별도로 막아야 한다.
-            if (DialogUI.Instance != null && DialogUI.Instance.IsShowing)
+            // 대화/이벤트 연출 중에는 입력을 완전히 무시한다(InputBlocker에 잠금을 건 쪽이
+            // 누구든). 터치 자체는 DialogUI의 전체화면 캐처가 UI 레이캐스트 우선순위로
+            // 가로채주지만, 키보드 입력(Input.GetAxisRaw)은 UI를 거치지 않고, 이벤트 중
+            // 강제 이동은 아예 UI를 안 거치므로 여기서 한 번에 막는다.
+            if (InputBlocker.IsBlocked)
             {
                 return;
             }
@@ -102,83 +97,18 @@ namespace Mountains
                 // 움직이는 대신 제자리에서 계속 회전만 하다가(위 SmoothDampAngle) 다시 앞쪽
                 // (내적 0 이상)으로 들어오면 그때부터 이동을 재개한다 — 회전이 이동을 못 따라가서
                 // 옆걸음/뒷걸음처럼 미끄러지는 걸 막는다.
-                if (Vector3.Dot(transform.forward, moveDirection) < 0f)
+                if (Vector3.Dot(transform.forward, moveDirection) < 0.1f)
                 {
                     moveDirection = Vector3.zero;
                 }
             }
 
-            if (_controller.isGrounded && _verticalVelocity < 0f)
-            {
-                _verticalVelocity = -2f;
-            }
-            _verticalVelocity += gravity * Time.deltaTime;
-
-            Vector3 motion = moveDirection * moveSpeed + Vector3.up * _verticalVelocity;
-            motion = BlockWaterMotion(motion);
-
-            var dtMotion = motion * Time.deltaTime;
-            _controller.Move(dtMotion);
-
-            if (math.abs(moveDirection.z) > 0.5f)
-            {
-                _animator.SetFloat("speed", 1);
-            }
-            else
-            {
-                _animator.SetFloat("speed", 0);
-            }
-        }
-
-        // 호수는 임의의 폴리곤이라 사각형 콜라이더로 못 막고, 물 표면 메시도 호수 bbox를
-        // 덮는 평평한 쿼드 하나뿐이라 그대로 콜라이더로 쓰면 사각형 전체가 막힌다. 대신
-        // 이미 있는 폴리곤 판정(IsInsideWaterArea)으로 이동 단계에서 직접 막는다.
-        //
-        // PhysX를 안 거치므로 벽을 따라 미끄러지는 처리도 직접 해야 한다 — 전체 이동이
-        // 막히면 X만/Z만 따로 시도해서, 막히지 않는 축만 살린다(고전적인 축 분리 방식).
-        // 그래야 호안에 닿았을 때 그대로 멈춰 서지 않고 물가를 따라 걸을 수 있다.
-        Vector3 BlockWaterMotion(Vector3 motion)
-        {
-            if (terrain == null)
-            {
-                return motion;
-            }
-
-            Vector3 horizontal = new Vector3(motion.x, 0f, motion.z);
-            if (horizontal.sqrMagnitude < 0.0001f || !WouldEnterWater(horizontal))
-            {
-                return motion;
-            }
-
-            if (!WouldEnterWater(new Vector3(motion.x, 0f, 0f)))
-            {
-                motion.z = 0f;
-            }
-            else if (!WouldEnterWater(new Vector3(0f, 0f, motion.z)))
-            {
-                motion.x = 0f;
-            }
-            else
-            {
-                motion.x = 0f;
-                motion.z = 0f;
-            }
-            return motion;
-        }
-
-        bool WouldEnterWater(Vector3 horizontalMotion)
-        {
-            Vector3 next = transform.position + horizontalMotion * Time.deltaTime;
-            Vector2 grid = terrain.WorldToGrid(next);
-            return terrain.IsInsideWaterArea(grid.x, grid.y);
-        }
-
-        // 지형을 다시 생성하면서 플레이어를 순간이동시킨 직후에 호출한다. 순간이동 전에
-        // 누적돼있던 낙하 속도가 남아있으면, 새 위치에 착지한 것처럼 보여도 다음 프레임에
-        // 그 속도가 그대로 적용돼 다시 훅 꺼지듯 떨어지는 것처럼 보인다.
-        public void ResetVelocity()
-        {
-            _verticalVelocity = 0f;
+            // NavMeshAgent.Move는 주어진 이동량만큼 옮기되 NavMesh 밖으로는 못 나가게
+            // 막아준다 — 나무/바위/가장자리벽은 물론, 호수(WaterNavObstacles로 Not
+            // Walkable 처리됨) 안으로도 애초에 들어갈 수가 없어서, 예전에 따로 짜뒀던
+            // 물 회피(축 분리 슬라이드) 코드가 통째로 필요 없어졌다. 지형 표면 높이도
+            // NavMeshAgent가 알아서 따라가므로 중력 시뮬레이션도 더 이상 필요 없다.
+            _agent.Move(moveDirection * moveSpeed * Time.deltaTime);
         }
     }
 }

@@ -23,6 +23,12 @@ namespace Mountains
         public float heightMultiplier = 60f;
         public int seed;
 
+        // 노이즈는 격자 좌표로 샘플링하므로(SampleHeight), cellSize를 바꾸면 같은 seed라도
+        // 산의 배치가 통째로 달라진다. 해상도를 올릴 때 noiseScale과 이 값을 같은 비율로
+        // 곱해주면 월드 공간에서 완전히 같은 지형이 유지된다(위상까지 보존) —
+        // (x*r + off*r)/(scale*r) = (x + off)/scale. 기존 에셋은 1이라 동작이 그대로다.
+        [HideInInspector] public float noiseOffsetScale = 1f;
+
         [Header("Smoothing")]
         [Tooltip("생성 후 이웃 정점끼리 평균 내는 횟수. 높일수록 뾰족한 봉우리가 둥글게 깎인다.")]
         [Range(0, 8)] public int smoothingIterations = 2;

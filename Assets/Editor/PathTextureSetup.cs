@@ -4,7 +4,7 @@ namespace Mountains
 {
     public static class PathTextureSetup
     {
-        [MenuItem("Mountains/Assign Path Textures")]
+        //[MenuItem("Mountains/Assign Path Textures")]
         public static void AssignPathTextures()
         {
             TerrainTextureAssign.AssignLayer("PathTextureSetup",

@@ -13,7 +13,7 @@ namespace Mountains
                 return;
             }
 
-            other.GetComponent<Player>()?.AddCoin();
+            //other.GetComponent<Player>()?.AddCoin();
             GameObject.Destroy(gameObject);
         }
     }

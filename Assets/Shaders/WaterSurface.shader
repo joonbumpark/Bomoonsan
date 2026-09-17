@@ -5,11 +5,12 @@
 //   (마스크로 그리면 텍스처 해상도/보간 오차 때문에 미세한 틈이 남았다).
 // - _MaskTex의 R채널은 "사용자가 그린 폴리곤 안쪽인지"만 담아, 호수가 아닌 저지대로
 //   물이 번지는 것만 막는다. G채널(정규화된 수심)은 얕은 색↔깊은 색 보간 + 포말 위치에 쓴다.
-// - "물처럼 보이게" 하는 네 가지를 텍스처 없이 순수 계산으로 얹는다(각각 Strength를
+// - "물처럼 보이게" 하는 다섯 가지를 텍스처 없이 순수 계산으로 얹는다(각각 Strength를
 //   0으로 두면 꺼짐): (1) 여러 사인파를 합쳐 노멀을 흔드는 잔물결 반짝임, (2) 그 노멀
-//   기준 Blinn-Phong 스페큘러, (3) 시야각이 낮을수록 밝아지는 프레넬 테두리, (4) 수심이
-//   0에 가까운 물가에 흰 포말 라인(정점 지오메트리는 그대로 평평하게 둬서 depth-cutout
-//   방식의 물가 정확도를 깨지 않는다 — 흔드는 건 노멀뿐).
+//   기준 Blinn-Phong 스페큘러, (3) 환경 반사(Reflection Probe가 있으면 주변 지형/나무,
+//   없으면 스카이박스 폴백), (4) 그 반사량을 시야각에 따라 키우는 프레넬(정면에서도
+//   _ReflectionBase만큼은 반사되게 바닥을 깔아둔다), (5) 수심이 0에 가까운 물가에 흰 포말 라인(정점 지오메트리는
+//   그대로 평평하게 둬서 depth-cutout 방식의 물가 정확도를 깨지 않는다 — 흔드는 건 노멀뿐).
 // - 라이팅은 TerrainBlend의 툰 셰이딩 없이 GetMainLight + SampleSH로만 심플하게 계산한다.
 Shader "Mountains/WaterSurface"
 {
@@ -30,9 +31,11 @@ Shader "Mountains/WaterSurface"
         _SpecularPower ("Specular Power", Range(1, 256)) = 60
         _SpecularStrength ("Specular Strength", Range(0, 4)) = 1.5
 
-        [Header(Fresnel Rim)]
-        _FresnelPower ("Fresnel Power", Range(0.5, 8)) = 3
-        _FresnelStrength ("Fresnel Strength", Range(0, 2)) = 0.6
+        [Header(Reflection)]
+        _ReflectionStrength ("Reflection Strength (전체 배수)", Range(0, 1)) = 0.6
+        _ReflectionBase ("Reflection When Looking Down (정면 반사량)", Range(0, 1)) = 0.35
+        _FresnelPower ("Fresnel Power (클수록 스칠 때만 강해짐)", Range(0.5, 8)) = 3
+        _ReflectionRoughness ("Reflection Roughness (0=거울, 1=흐릿)", Range(0, 1)) = 0.05
 
         [Header(Shore Foam)]
         _FoamColor ("Foam Color", Color) = (1, 1, 1, 1)
@@ -67,6 +70,10 @@ Shader "Mountains/WaterSurface"
             #pragma multi_compile _ _SHADOWS_SOFT
             #pragma multi_compile_fog
 
+            // Reflection Probe 및 Skybox 반사 바인딩을 위한 필수 Multi-compile 키워드
+            #pragma multi_compile _ _REFLECTION_PROBE_BLENDING
+            #pragma multi_compile _ _REFLECTION_PROBE_BOX_PROJECTION
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -83,7 +90,9 @@ Shader "Mountains/WaterSurface"
                 float _SpecularPower;
                 float _SpecularStrength;
                 float _FresnelPower;
-                float _FresnelStrength;
+                float _ReflectionStrength;
+                float _ReflectionBase;
+                float _ReflectionRoughness;
                 float4 _FoamColor;
                 float _FoamWidth;
                 float _FoamStrength;
@@ -165,16 +174,24 @@ Shader "Mountains/WaterSurface"
                 float specTerm = pow(saturate(dot(normalWS, halfDirWS)), _SpecularPower) * _SpecularStrength;
                 float3 specular = mainLight.color * specTerm * _SpecularColor.rgb * mainLight.shadowAttenuation;
 
-                // ---- 프레넬 테두리 ----
-                // 시야가 수면을 스치듯 낮은 각도로 볼수록 밝아진다 — 실제 물의 반사 성질.
-                float fresnel = pow(1.0 - saturate(dot(normalWS, viewDirWS)), _FresnelPower) * _FresnelStrength;
-                float3 fresnelColor = ambient + mainLight.color * 0.5;
+                // ---- 환경 반사 ----
+                // 반사색은 잔물결로 흔든 노멀 기준 반사 벡터로 환경을 샘플링해서 얻는다 —
+                // 씬에 Reflection Probe가 있으면 그걸(주변 지형/나무), 없으면 스카이박스
+                // 기반 전역 폴백(하늘)을 비춘다. 큐브맵 한 번 샘플링이라 모바일에서도 가볍다.
+                //
+                // 반사량은 프레넬(스치듯 볼수록 1에 가까움)에만 맡기지 않고 _ReflectionBase를
+                // 바닥으로 깐다 — 프레넬만 쓰면 3인칭 카메라처럼 수면을 내려다보는 각도에서
+                // 값이 1~2%까지 떨어져서 반사가 사실상 안 보인다.
+                float fresnelCurve = pow(1.0 - saturate(dot(normalWS, viewDirWS)), _FresnelPower);
+                float3 reflectVector = reflect(-viewDirWS, normalWS);
+                float3 envColor = GlossyEnvironmentReflection(reflectVector, _ReflectionRoughness, 1.0);
+                float reflectAmount = saturate(lerp(_ReflectionBase, 1.0, fresnelCurve) * _ReflectionStrength);
 
                 // ---- 물가 포말 ----
                 // 수심(depth)이 0에 가까운 물가일수록 흰 테두리를 얹는다.
                 float foam = (1.0 - smoothstep(0.0, max(_FoamWidth, 1e-4), depth)) * _FoamStrength;
 
-                float3 finalColor = litColor + specular + fresnelColor * fresnel;
+                float3 finalColor = lerp(litColor, envColor, reflectAmount) + specular;
                 finalColor = lerp(finalColor, _FoamColor.rgb, saturate(foam));
 
                 return half4(finalColor, tint.a);
