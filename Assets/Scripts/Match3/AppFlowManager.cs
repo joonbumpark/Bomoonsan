@@ -1,80 +1,61 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 namespace Match3
 {
     /// <summary>
-    /// 앱 전체 흐름을 관리한다: 메뉴(싱글/대전/리더보드) -> 게임 선택(3매치/복주머니 잡기/
-    /// 순서 기억하기) -> (대전이면) 매칭 대기 -> 실제 플레이(IRoundGame) -> 결과 화면 -> 다시 메뉴.
+    /// 앱 전체 흐름을 관리한다: 게임 선택(3매치/테트리스/직소 퍼즐, 앱의 첫 화면) -> (매치3만)
+    /// 싱글/대전 선택(PlayModePopup) -> (대전이면) 매칭 대기 -> 실제 플레이(IRoundGame) ->
+    /// 결과 화면(ResultPopup) -> 나가기(게임 선택으로) 또는 다시하기(같은 모드로 재도전).
     ///
-    /// 씬에 아무것도 없어도 Play를 누르면 자동으로 생성된다 (InGameScene 한정).
+    /// 매치3만 대전을 지원한다(GameKindExtensions.SupportsVersusMode) - 나머지 게임은
+    /// 게임을 고르자마자 싱글로 바로 시작하고, 싱글/대전 선택 팝업 자체를 안 띄운다.
+    ///
+    /// 리더보드도 게임에 따라 저장 위치가 다르다: 매치3는 싱글/대전 어느 쪽이든 라운드가
+    /// 끝나면 서버에 자동 기록되고(같은 닉네임이면 더 높은 점수만 남음), 나머지 게임은
+    /// 대전이 없어서 서버 대신 이 기기에만 기록한다(LocalLeaderboardStore, 같은 규칙).
+    /// 결과 화면의 등수 표시(ResultPopup.SetRank)도 매치3는 서버 응답(OnLeaderboardRank)을
+    /// 기다렸다가 채우고, 나머지는 기록 직후 로컬에서 바로 계산해서 채운다.
+    ///
+    /// 닉네임은 입력 UI 없이 최초 1회 자동 생성해서 PlayerPrefs에 저장해두고 계속 재사용한다
+    /// (ResolveNickname).
+    ///
+    /// 아래 씬 UI 필드는 전부 인스펙터에서 미리 연결돼 있어야 한다 - Canvas/패널을
+    /// 코드로 매번 새로 만드는 대신 Bomoonsan > Build App Shell In Scene 메뉴
+    /// (Assets/Editor/AppShellSceneBuilder.cs)로 InGameScene에 미리 배치해두고,
+    /// 이 컴포넌트는 그 오브젝트들을 참조만 한다. 위치/아트를 손보고 싶으면 씬에서
+    /// 직접 만지면 되고, 코드를 다시 실행할 필요가 없다.
     /// </summary>
     public class AppFlowManager : MonoBehaviour
     {
         [Header("대전 서버")]
         public string serverUrl = "wss://bomoonsan-match3.fly.dev";
 
-        private const string GameplaySceneName = "InGameScene";
         private const string NicknamePrefKey = "match3_nickname";
 
-        // 팝업 카드(복주머니 프레임) 배경이 흰색이라, 그 위에 올라가는 글자는
-        // 기본 흰 글씨(UIFactory.CreateText 기본값) 대신 어두운 색을 써야 잘 보인다.
-        private static readonly Color PopupTextColor = new Color(0.24f, 0.16f, 0.08f);
-
-        /// <summary>메뉴에서 "싱글/대전/리더보드" 중 뭘 누르고 게임 선택으로 왔는지.</summary>
-        private enum PendingAction { None, Single, Versus, Leaderboard }
+        [Header("씬 UI - 공통")]
+        [SerializeField] private GameObject appCanvasRoot;
+        [SerializeField] private GameSelectPopup gameSelectPopup;
+        [SerializeField] private PlayModePopup playModePopup;
+        [SerializeField] private MatchmakingPopup matchmakingPopup;
+        [SerializeField] private ResultPopup resultPopup;
 
         private Dictionary<GameKind, IRoundGame> games;
         private GameKind selectedGame = GameKind.Match3;
-        private PendingAction pendingAction;
         private IRoundGame CurrentGame => games[selectedGame];
 
         private NetworkClient network;
-
-        private GameObject appCanvasRoot;
-        private GameObject menuPanel;
-        private GameObject gameSelectPanel;
-        private GameObject matchmakingPanel;
-        private GameObject resultPanel;
-        private GameObject leaderboardPanel;
-
-        private InputField nicknameInputField;
-        private Text matchmakingText;
-        private Button cancelMatchmakingButton;
-        private Text resultTitleText;
-        private Text resultDetailText;
-        private Text leaderboardTitleText;
-        private Text leaderboardListText;
 
         private bool isVersusMatch;
         private string currentMatchId;
         private string currentOpponentName;
         private Action pendingOnOpenAction;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void AutoBootstrap()
-        {
-            if (SceneManager.GetActiveScene().name != GameplaySceneName)
-                return;
-
-            if (UnityEngine.Object.FindFirstObjectByType<AppFlowManager>() != null)
-                return;
-
-            var go = new GameObject("AppFlowManager");
-            go.AddComponent<AppFlowManager>();
-        }
-
         private void Awake()
         {
-            EnsureEventSystem();
-            BuildUI();
+            if (!ValidateSceneRefs())
+                return;
 
             games = new Dictionary<GameKind, IRoundGame>
             {
@@ -95,11 +76,11 @@ namespace Match3
             network.OnQueued += HandleQueued;
             network.OnMatched += HandleMatched;
             network.OnMatchResult += HandleMatchResult;
-            network.OnLeaderboard += HandleLeaderboard;
+            network.OnLeaderboardRank += HandleLeaderboardRank;
             network.OnError += HandleNetworkError;
 
-            LoadNickname();
-            ShowMenu();
+            WireButtons();
+            ShowGameSelect();
         }
 
         /// <summary>
@@ -117,173 +98,47 @@ namespace Match3
             return go.AddComponent<T>();
         }
 
-        private void EnsureEventSystem()
+        /// <summary>
+        /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가
+        /// 비었는지 한 번에 알려주고 멈춘다 - Bomoonsan > Build App Shell In Scene을
+        /// 다시 돌리거나 수동으로 연결하면 된다.
+        /// </summary>
+        private bool ValidateSceneRefs()
         {
-            if (UnityEngine.Object.FindFirstObjectByType<EventSystem>() != null)
-                return;
-
-            var eventSystemGo = new GameObject("EventSystem");
-            eventSystemGo.AddComponent<EventSystem>();
-            // 이 프로젝트는 새 Input System만 사용하도록 설정되어 있으므로
-            // 레거시 StandaloneInputModule 대신 InputSystemUIInputModule을 사용한다.
-            var uiModule = eventSystemGo.AddComponent<InputSystemUIInputModule>();
-            uiModule.AssignDefaultActions();
-        }
-
-        // ----------------------------------------------------------------
-        // UI 생성
-        // ----------------------------------------------------------------
-
-        private void BuildUI()
-        {
-            var canvasGo = new GameObject("AppCanvas");
-            canvasGo.transform.SetParent(transform, false);
-            appCanvasRoot = canvasGo;
-
-            var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasGo.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080, 1920);
-            scaler.matchWidthOrHeight = 0.5f;
-
-            canvasGo.AddComponent<GraphicRaycaster>();
-
-            var background = UIFactory.CreateImage("Background", canvasGo.transform, new Color(0.10f, 0.11f, 0.15f));
-            UIFactory.StretchFull(background.rectTransform);
-
-            BuildMenuPanel(canvasGo.transform);
-            BuildGameSelectPanel(canvasGo.transform);
-            BuildMatchmakingPanel(canvasGo.transform);
-            BuildResultPanel(canvasGo.transform);
-            BuildLeaderboardPanel(canvasGo.transform);
-        }
-
-        private static GameObject CreateFullscreenPanel(string name, Transform parent, Color bgColor)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            UIFactory.StretchFull(rt);
-
-            if (bgColor.a > 0f)
+            var missing = new List<string>();
+            void Check(UnityEngine.Object obj, string fieldName)
             {
-                var image = go.AddComponent<Image>();
-                image.color = bgColor;
+                if (obj == null)
+                    missing.Add(fieldName);
             }
 
-            return go;
+            Check(appCanvasRoot, nameof(appCanvasRoot));
+            Check(gameSelectPopup, nameof(gameSelectPopup));
+            Check(playModePopup, nameof(playModePopup));
+            Check(matchmakingPopup, nameof(matchmakingPopup));
+            Check(resultPopup, nameof(resultPopup));
+
+            if (missing.Count == 0)
+                return true;
+
+            Debug.LogError(
+                $"[AppFlowManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
+                "Bomoonsan > Build App Shell In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                this);
+            return false;
         }
 
-        // 아래 각 패널은 전부 부모 중심(0,0)을 기준으로 한 픽셀 오프셋으로 배치한다.
-        // 0~1 비율 기준 배치는 화면 비율(가로로 넓은 창 등)에 따라 실제 캔버스 높이가
-        // 크게 달라져서 요소끼리 겹칠 수 있었는데(보드에서 겪었던 것과 같은 문제),
-        // 고정 픽셀 오프셋은 캔버스 크기와 무관하게 항상 같은 간격을 유지한다.
-
-        private void BuildMenuPanel(Transform parent)
+        private void WireButtons()
         {
-            menuPanel = CreateFullscreenPanel("MenuPanel", parent, new Color(0, 0, 0, 0));
+            gameSelectPopup.GameSelected += OnGameSelected;
 
-            UIFactory.CreateTextAt(
-                "Title", menuPanel.transform, "보문산 3매치 퍼즐", 76, TextAnchor.MiddleCenter,
-                new Vector2(0, 480), new Vector2(900, 150));
+            playModePopup.SinglePlayClicked += OnSinglePlayClicked;
+            playModePopup.VersusPlayClicked += OnVersusPlayClicked;
 
-            nicknameInputField = UIFactory.CreateInputField(
-                "NicknameInput", menuPanel.transform, "닉네임 (대전용)", new Vector2(0, 220), new Vector2(600, 110));
+            matchmakingPopup.CancelClicked += OnCancelMatchmakingClicked;
 
-            var singleButton = UIFactory.CreateButton("SingleButton", menuPanel.transform, "싱글 플레이", new Vector2(0, 80), new Vector2(560, 120));
-            singleButton.onClick.AddListener(OnSinglePlayClicked);
-
-            var versusButton = UIFactory.CreateButton("VersusButton", menuPanel.transform, "대전 플레이", new Vector2(0, -60), new Vector2(560, 120));
-            versusButton.onClick.AddListener(OnVersusPlayClicked);
-
-            var leaderboardButton = UIFactory.CreateButton("LeaderboardButton", menuPanel.transform, "리더보드", new Vector2(0, -200), new Vector2(560, 120));
-            leaderboardButton.onClick.AddListener(OnLeaderboardClicked);
-        }
-
-        /// <summary>싱글/대전/리더보드 중 뭘 눌렀든, 3가지 게임 중 하나를 고르는 중간 화면.</summary>
-        private void BuildGameSelectPanel(Transform parent)
-        {
-            gameSelectPanel = CreateFullscreenPanel("GameSelectPanel", parent, new Color(0, 0, 0, 0.6f));
-            UIFactory.CreatePopupCard("Card", gameSelectPanel.transform, new Vector2(800, 750));
-
-            var title = UIFactory.CreateTextAt(
-                "GameSelectTitle", gameSelectPanel.transform, "게임 선택", 76, TextAnchor.MiddleCenter,
-                new Vector2(0, 280), new Vector2(700, 110));
-            title.color = PopupTextColor;
-
-            var match3Button = UIFactory.CreateButton("GameSelectMatch3", gameSelectPanel.transform, GameKind.Match3.DisplayName(), new Vector2(0, 120), new Vector2(560, 120));
-            match3Button.onClick.AddListener(() => OnGameSelected(GameKind.Match3));
-
-            var tetrisButton = UIFactory.CreateButton("GameSelectTetris", gameSelectPanel.transform, GameKind.Tetris.DisplayName(), new Vector2(0, -20), new Vector2(560, 120));
-            tetrisButton.onClick.AddListener(() => OnGameSelected(GameKind.Tetris));
-
-            var jigsawButton = UIFactory.CreateButton("GameSelectJigsaw", gameSelectPanel.transform, GameKind.Jigsaw.DisplayName(), new Vector2(0, -160), new Vector2(560, 120));
-            jigsawButton.onClick.AddListener(() => OnGameSelected(GameKind.Jigsaw));
-
-            var backButton = UIFactory.CreateButton("GameSelectBack", gameSelectPanel.transform, "뒤로", new Vector2(0, -300), new Vector2(300, 110));
-            backButton.onClick.AddListener(ShowMenu);
-
-            gameSelectPanel.SetActive(false);
-        }
-
-        private void BuildMatchmakingPanel(Transform parent)
-        {
-            matchmakingPanel = CreateFullscreenPanel("MatchmakingPanel", parent, new Color(0, 0, 0, 0.6f));
-            UIFactory.CreatePopupCard("Card", matchmakingPanel.transform, new Vector2(800, 500));
-
-            matchmakingText = UIFactory.CreateTextAt(
-                "MatchmakingText", matchmakingPanel.transform, "상대를 찾는 중...", 60, TextAnchor.MiddleCenter,
-                new Vector2(0, 60), new Vector2(900, 150));
-            matchmakingText.color = PopupTextColor;
-
-            cancelMatchmakingButton = UIFactory.CreateButton("CancelButton", matchmakingPanel.transform, "취소", new Vector2(0, -100), new Vector2(300, 120));
-            cancelMatchmakingButton.onClick.AddListener(OnCancelMatchmakingClicked);
-
-            matchmakingPanel.SetActive(false);
-        }
-
-        private void BuildResultPanel(Transform parent)
-        {
-            resultPanel = CreateFullscreenPanel("ResultPanel", parent, new Color(0, 0, 0, 0.75f));
-            UIFactory.CreatePopupCard("Card", resultPanel.transform, new Vector2(900, 650));
-
-            resultTitleText = UIFactory.CreateTextAt(
-                "ResultTitle", resultPanel.transform, "게임 종료", 88, TextAnchor.MiddleCenter,
-                new Vector2(0, 180), new Vector2(900, 150));
-            resultTitleText.color = PopupTextColor;
-
-            resultDetailText = UIFactory.CreateTextAt(
-                "ResultDetail", resultPanel.transform, "점수: 0", 48, TextAnchor.MiddleCenter,
-                new Vector2(0, 30), new Vector2(900, 100));
-            resultDetailText.color = PopupTextColor;
-
-            var menuButton = UIFactory.CreateButton("ResultMenuButton", resultPanel.transform, "메뉴로", new Vector2(0, -150), new Vector2(360, 130));
-            menuButton.onClick.AddListener(ShowMenu);
-
-            resultPanel.SetActive(false);
-        }
-
-        private void BuildLeaderboardPanel(Transform parent)
-        {
-            leaderboardPanel = CreateFullscreenPanel("LeaderboardPanel", parent, new Color(0, 0, 0, 0.85f));
-            UIFactory.CreatePopupCard("Card", leaderboardPanel.transform, new Vector2(850, 950));
-
-            leaderboardTitleText = UIFactory.CreateTextAt(
-                "LeaderboardTitle", leaderboardPanel.transform, "리더보드", 76, TextAnchor.MiddleCenter,
-                new Vector2(0, 300), new Vector2(700, 110));
-            leaderboardTitleText.color = PopupTextColor;
-
-            leaderboardListText = UIFactory.CreateTextAt(
-                "LeaderboardList", leaderboardPanel.transform, "불러오는 중...", 40, TextAnchor.UpperCenter,
-                new Vector2(0, 10), new Vector2(700, 420));
-            leaderboardListText.color = PopupTextColor;
-
-            var closeButton = UIFactory.CreateButton("LeaderboardCloseButton", leaderboardPanel.transform, "닫기", new Vector2(0, -300), new Vector2(300, 120));
-            closeButton.onClick.AddListener(ShowMenu);
-
-            leaderboardPanel.SetActive(false);
+            resultPopup.ExitClicked += ShowGameSelect;
+            resultPopup.RetryClicked += OnRetryClicked;
         }
 
         // ----------------------------------------------------------------
@@ -292,11 +147,10 @@ namespace Match3
 
         private void SetActivePanel(GameObject panel)
         {
-            menuPanel.SetActive(panel == menuPanel);
-            gameSelectPanel.SetActive(panel == gameSelectPanel);
-            matchmakingPanel.SetActive(panel == matchmakingPanel);
-            resultPanel.SetActive(panel == resultPanel);
-            leaderboardPanel.SetActive(panel == leaderboardPanel);
+            gameSelectPopup.gameObject.SetActive(panel == gameSelectPopup.gameObject);
+            playModePopup.gameObject.SetActive(panel == playModePopup.gameObject);
+            matchmakingPopup.gameObject.SetActive(panel == matchmakingPopup.gameObject);
+            resultPopup.gameObject.SetActive(panel == resultPopup.gameObject);
             appCanvasRoot.SetActive(panel != null);
 
             // 패널이 하나도 안 떠 있을 때(panel == null)만 실제 게임 화면이고,
@@ -305,27 +159,26 @@ namespace Match3
                 kv.Value.SetVisible(panel == null && kv.Key == selectedGame);
         }
 
-        private void ShowMenu()
+        private void ShowPlayModePopup()
         {
             if (network.IsConnected)
                 network.LeaveQueue();
 
             isVersusMatch = false;
-            SetActivePanel(menuPanel);
+            SetActivePanel(playModePopup.gameObject);
+            playModePopup.Show();
         }
 
         private void ShowMatchmaking()
         {
-            SetActivePanel(matchmakingPanel);
-            matchmakingText.text = "상대를 찾는 중...";
-            cancelMatchmakingButton.gameObject.SetActive(true);
+            SetActivePanel(matchmakingPopup.gameObject);
+            matchmakingPopup.ShowSearching();
         }
 
         private void ShowWaitingForResult()
         {
-            SetActivePanel(matchmakingPanel);
-            matchmakingText.text = "결과를 기다리는 중...";
-            cancelMatchmakingButton.gameObject.SetActive(false);
+            SetActivePanel(matchmakingPopup.gameObject);
+            matchmakingPopup.ShowWaitingForResult();
         }
 
         private void ShowGame()
@@ -335,70 +188,60 @@ namespace Match3
 
         private void ShowGameSelect()
         {
-            SetActivePanel(gameSelectPanel);
+            SetActivePanel(gameSelectPopup.gameObject);
+            gameSelectPopup.Show();
         }
 
-        private void ShowLeaderboardLoading()
+        private void ShowResult(int score)
         {
-            SetActivePanel(leaderboardPanel);
-            leaderboardTitleText.text = $"리더보드 - {selectedGame.DisplayName()}";
-            leaderboardListText.text = "불러오는 중...";
+            SetActivePanel(resultPopup.gameObject);
+            resultPopup.Show(score);
         }
 
         // ----------------------------------------------------------------
         // 버튼 핸들러
         // ----------------------------------------------------------------
 
-        private void OnSinglePlayClicked()
-        {
-            pendingAction = PendingAction.Single;
-            ShowGameSelect();
-        }
-
-        private void OnVersusPlayClicked()
-        {
-            pendingAction = PendingAction.Versus;
-            ShowGameSelect();
-        }
-
-        private void OnLeaderboardClicked()
-        {
-            pendingAction = PendingAction.Leaderboard;
-            ShowGameSelect();
-        }
-
-        /// <summary>게임 선택 화면에서 3개 중 하나를 고르면, 메뉴에서 눌렀던 버튼(싱글/대전/
-        /// 리더보드)에 맞는 다음 단계로 진행한다.</summary>
+        /// <summary>게임 선택 화면(앱 첫 화면)에서 게임을 고르면, 대전을 지원하는 게임(매치3)만
+        /// 싱글/대전 선택 팝업으로 넘어가고, 나머지는 고르자마자 바로 싱글로 시작한다.</summary>
         private void OnGameSelected(GameKind kind)
         {
             selectedGame = kind;
 
-            switch (pendingAction)
-            {
-                case PendingAction.Single:
-                    isVersusMatch = false;
-                    ShowGame();
-                    CurrentGame.BeginRound();
-                    break;
+            if (kind.SupportsVersusMode())
+                ShowPlayModePopup();
+            else
+                OnSinglePlayClicked();
+        }
 
-                case PendingAction.Versus:
-                    isVersusMatch = true;
-                    string name = ResolveNickname();
-                    ShowMatchmaking();
-                    EnsureConnectedThen(() => network.JoinQueue(name, selectedGame.ToServerId()));
-                    break;
+        private void OnSinglePlayClicked()
+        {
+            isVersusMatch = false;
+            ShowGame();
+            CurrentGame.BeginRound();
+        }
 
-                case PendingAction.Leaderboard:
-                    ShowLeaderboardLoading();
-                    EnsureConnectedThen(() => network.RequestLeaderboard(selectedGame.ToServerId()));
-                    break;
-            }
+        private void OnVersusPlayClicked()
+        {
+            isVersusMatch = true;
+            string name = ResolveNickname();
+            ShowMatchmaking();
+            EnsureConnectedThen(() => network.JoinQueue(name, selectedGame.ToServerId()));
+        }
+
+        /// <summary>결과 화면의 "다시하기" - 방금 그 게임을 같은 모드(싱글/대전)로 다시 한다.</summary>
+        private void OnRetryClicked()
+        {
+            if (isVersusMatch)
+                OnVersusPlayClicked();
+            else
+                OnSinglePlayClicked();
         }
 
         private void OnCancelMatchmakingClicked()
         {
             network.LeaveQueue();
-            ShowMenu();
+            ShowPlayModePopup();
         }
 
         private void EnsureConnectedThen(Action action)
@@ -446,72 +289,64 @@ namespace Match3
             }
             else
             {
-                SetActivePanel(resultPanel);
-                resultTitleText.text = "게임 종료";
-                resultDetailText.text = $"점수: {finalScore}";
+                ShowResult(finalScore);
+
+                string name = ResolveNickname();
+                if (selectedGame.SupportsVersusMode())
+                {
+                    // 대전과 동일한 서버 리더보드에, 매치 없이 바로 기록한다 (같은
+                    // 닉네임이면 서버가 더 높은 점수만 남긴다). 등수는 서버가
+                    // leaderboard_rank로 알려주면 HandleLeaderboardRank에서 채운다.
+                    EnsureConnectedThen(() => network.SubmitSoloScore(name, selectedGame.ToServerId(), finalScore));
+                }
+                else
+                {
+                    // 대전이 없는 게임은 서버 리더보드가 없다 - 기기에만 기록하고,
+                    // 등수도 서버 응답 없이 바로 계산해서 채운다.
+                    LocalLeaderboardStore.RecordScore(selectedGame, name, finalScore);
+                    var (rank, total) = LocalLeaderboardStore.GetRank(selectedGame, name);
+                    resultPopup.SetRank(rank, total);
+                }
             }
         }
 
         private void HandleMatchResult(string result, int yourScore, int opponentScore)
         {
-            SetActivePanel(resultPanel);
-            resultTitleText.text = result switch
-            {
-                "win" => "승리했습니다!",
-                "lose" => "패배했습니다",
-                _ => "무승부",
-            };
-            resultDetailText.text = $"내 점수: {yourScore}   상대({currentOpponentName}) 점수: {opponentScore}";
+            // 승/패/무나 상대 점수는 지금 결과 팝업엔 별도 자리가 없다 - 일단 내 점수와
+            // 등수만 다른 결과 화면과 동일하게 보여준다. 등수는 곧 이어서 서버가 보내는
+            // leaderboard_rank로 채워진다.
+            ShowResult(yourScore);
         }
 
-        private void HandleLeaderboard(List<LeaderboardEntry> entries)
+        private void HandleLeaderboardRank(string game, int rank, int total)
         {
-            if (entries == null || entries.Count == 0)
-            {
-                leaderboardListText.text = "아직 기록이 없습니다.";
+            // 게임을 바꾼 뒤에 뒤늦게 도착한 응답이면 무시한다.
+            if (game != selectedGame.ToServerId())
                 return;
-            }
 
-            var sb = new StringBuilder();
-            int rank = 1;
-            foreach (var entry in entries.Take(10))
-            {
-                sb.AppendLine($"{rank}. {entry.name} - {entry.score}");
-                rank++;
-            }
-            leaderboardListText.text = sb.ToString();
+            resultPopup.SetRank(rank, total);
         }
 
         private void HandleNetworkError(string message)
         {
             Debug.LogError($"[AppFlowManager] 네트워크 오류: {message}");
-            if (matchmakingPanel.activeSelf)
-            {
-                matchmakingText.text = $"연결 오류: {message}\n(취소를 눌러 메뉴로 돌아가세요)";
-                cancelMatchmakingButton.gameObject.SetActive(true);
-            }
+            if (matchmakingPopup.gameObject.activeSelf)
+                matchmakingPopup.ShowError(message);
         }
 
         // ----------------------------------------------------------------
-        // 닉네임 저장
+        // 닉네임
         // ----------------------------------------------------------------
 
-        private void LoadNickname()
+        /// <summary>입력 UI 없이 최초 1회 자동으로 만들어 PlayerPrefs에 저장해두고 계속
+        /// 재사용한다 (대전 상대에게 보이는 이름이자 리더보드에 올라가는 이름).</summary>
+        private string ResolveNickname()
         {
             string saved = PlayerPrefs.GetString(NicknamePrefKey, string.Empty);
             if (!string.IsNullOrEmpty(saved))
-                nicknameInputField.text = saved;
-        }
+                return saved;
 
-        private string ResolveNickname()
-        {
-            string name = nicknameInputField.text?.Trim();
-            if (string.IsNullOrEmpty(name))
-            {
-                name = "Player" + UnityEngine.Random.Range(1000, 9999);
-                nicknameInputField.text = name;
-            }
-
+            string name = "Player" + UnityEngine.Random.Range(1000, 9999);
             PlayerPrefs.SetString(NicknamePrefKey, name);
             return name;
         }

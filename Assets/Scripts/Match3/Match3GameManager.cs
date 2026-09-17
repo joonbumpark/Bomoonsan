@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -51,13 +52,14 @@ namespace Match3
             new Color(0.61f, 0.35f, 0.71f), // 보라
         };
 
+        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [SerializeField] private GameObject canvasRoot;
+        [SerializeField] private TextMeshProUGUI scoreText;
+        [SerializeField] private TextMeshProUGUI timerText;
+
         private Match3Board board;
         private TileView[,] views;
         private RectTransform boardRoot;
-        private GameObject canvasRoot;
-
-        private Text scoreText;
-        private Text timerText;
 
         private int score;
         private bool inputLocked;
@@ -67,8 +69,44 @@ namespace Match3
 
         private void Awake()
         {
-            BuildUI();
+            if (!ValidateSceneRefs())
+                return;
+
+            // BuildBoardRoot의 화면 맞춤 계산(Canvas.ForceUpdateCanvases)이 실제 캔버스
+            // 크기를 읽어야 하는데, 씬에 미리 만들어둔 캔버스는 꺼진 채로 저장돼 있어서
+            // 꺼진 상태로는 크기가 0으로 잡혀 보드가 지나치게 작아진다 - 계산하는 동안만
+            // 잠깐 켜둔다.
+            canvasRoot.SetActive(true);
+            BuildBoardRoot(canvasRoot.transform);
             SetVisible(false);
+        }
+
+        /// <summary>
+        /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
+        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
+        /// 돌리거나 수동으로 연결하면 된다.
+        /// </summary>
+        private bool ValidateSceneRefs()
+        {
+            var missing = new List<string>();
+            void Check(UnityEngine.Object obj, string fieldName)
+            {
+                if (obj == null)
+                    missing.Add(fieldName);
+            }
+
+            Check(canvasRoot, nameof(canvasRoot));
+            Check(scoreText, nameof(scoreText));
+            Check(timerText, nameof(timerText));
+
+            if (missing.Count == 0)
+                return true;
+
+            Debug.LogError(
+                $"[Match3GameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
+                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                this);
+            return false;
         }
 
         /// <summary>게임 화면을 보이거나 숨긴다. AppFlowManager가 메뉴/결과 화면과 전환할 때 쓴다.</summary>
@@ -120,18 +158,13 @@ namespace Match3
         }
 
         // ----------------------------------------------------------------
-        // UI 생성
+        // 보드 루트 생성 (실제 게임판 - 그리드 크기가 인스펙터 설정에 따라 달라져서
+        // 씬에 미리 박아둘 수 없다. 캔버스/점수바/안내문구 같은 나머지 UI는 전부
+        // Bomoonsan > Build Game HUDs In Scene으로 씬에 미리 만들어둔다.)
         // ----------------------------------------------------------------
 
-        private void BuildUI()
-        {
-            canvasRoot = UIFactory.CreateGameCanvasRoot(transform, "Match3Canvas");
-            UIFactory.CreateGameTopBar(canvasRoot.transform, TopBarHeight, out scoreText, out timerText);
-            BuildBoardRoot(canvasRoot.transform);
-            UIFactory.CreateGameHint(canvasRoot.transform, HintBarHeight, "드래그로 교환, 아이템 블록은 탭하거나 옮기면 발동!");
-        }
-
-        // 상단 바/하단 안내문구가 차지하는 고정 높이. 보드 크기를 화면에 맞출 때도 사용한다.
+        // 상단 바/하단 안내문구가 차지하는 고정 높이 (씬의 실제 배치와 맞춰야 한다).
+        // 보드 크기를 화면에 맞출 때도 사용한다.
         private const float TopBarHeight = 220f;
         private const float HintBarHeight = 100f;
 
@@ -147,7 +180,7 @@ namespace Match3
             // 상단 바와 하단 안내문구 사이 정중앙에 오도록 고정 오프셋을 준다.
             boardRoot.anchoredPosition = new Vector2(0, (HintBarHeight - TopBarHeight) / 2f);
 
-            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
+            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.8f));
             UIFactory.StretchFull(boardBg.rectTransform);
 
             // 세로로 좁거나(가로로 긴 창 등) 화면 비율이 기준 해상도와 많이 다르면

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -51,8 +52,8 @@ namespace Match3
         private RectTransform boardRoot;
         private Image[,] holes;
         private bool[,] active;
-        private Text scoreText;
-        private Text timerText;
+        private TextMeshProUGUI scoreText;
+        private TextMeshProUGUI timerText;
 
         private int score;
         private bool roundActive;
@@ -207,7 +208,7 @@ namespace Match3
             boardRoot.sizeDelta = new Vector2(boardW, boardH);
             boardRoot.anchoredPosition = new Vector2(0, (HintBarHeight - TopBarHeight) / 2f);
 
-            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
+            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.8f));
             UIFactory.StretchFull(boardBg.rectTransform);
 
             // Match3GameManager와 같은 방식: 화면 비율이 기준 해상도와 많이 다르면

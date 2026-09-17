@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -69,15 +70,24 @@ namespace Match3
         public int CurrentScore => score;
 
         private const float TopBarHeight = 220f;
-        private const float NextPanelHeight = 170f;
+        private const float NextPanelHeight = 260f;
         private const float ControlBarHeight = 220f;
 
-        private GameObject canvasRoot;
+        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [SerializeField] private GameObject canvasRoot;
+        [SerializeField] private TextMeshProUGUI scoreText;
+        [SerializeField] private TextMeshProUGUI timerText;
+        [Tooltip("다음 블록 4x4 미리보기 - 실제 미니 셀 이미지는 코드가 이 자리 밑에 만든다.")]
+        [SerializeField] private RectTransform nextPreviewRoot;
+        [SerializeField] private Button leftButton;
+        [SerializeField] private Button rightButton;
+        [SerializeField] private Button rotateButton;
+        [SerializeField] private Button softDropButton;
+        [SerializeField] private Button hardDropButton;
+
         private RectTransform boardRoot;
         private Image[,] cellImages;
         private Image[,] nextPreviewCells;
-        private Text scoreText;
-        private Text timerText;
 
         private int[,] board; // 0 = 빈칸, 1..7 = 잠긴 블록의 (pieceType+1)
         private int score;
@@ -99,8 +109,52 @@ namespace Match3
 
         private void Awake()
         {
-            BuildUI();
+            if (!ValidateSceneRefs())
+                return;
+
+            // BuildBoardRoot의 화면 맞춤 계산(Canvas.ForceUpdateCanvases)이 실제 캔버스
+            // 크기를 읽어야 하는데, 씬에 미리 만들어둔 캔버스는 꺼진 채로 저장돼 있어서
+            // 꺼진 상태로는 크기가 0으로 잡혀 보드가 지나치게 작아진다 - 계산하는 동안만
+            // 잠깐 켜둔다.
+            canvasRoot.SetActive(true);
+            BuildNextPreviewGrid();
+            BuildBoardRoot(canvasRoot.transform);
+            WireControlButtons();
             SetVisible(false);
+        }
+
+        /// <summary>
+        /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
+        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
+        /// 돌리거나 수동으로 연결하면 된다.
+        /// </summary>
+        private bool ValidateSceneRefs()
+        {
+            var missing = new List<string>();
+            void Check(UnityEngine.Object obj, string fieldName)
+            {
+                if (obj == null)
+                    missing.Add(fieldName);
+            }
+
+            Check(canvasRoot, nameof(canvasRoot));
+            Check(scoreText, nameof(scoreText));
+            Check(timerText, nameof(timerText));
+            Check(nextPreviewRoot, nameof(nextPreviewRoot));
+            Check(leftButton, nameof(leftButton));
+            Check(rightButton, nameof(rightButton));
+            Check(rotateButton, nameof(rotateButton));
+            Check(softDropButton, nameof(softDropButton));
+            Check(hardDropButton, nameof(hardDropButton));
+
+            if (missing.Count == 0)
+                return true;
+
+            Debug.LogError(
+                $"[TetrisGameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
+                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                this);
+            return false;
         }
 
         public void SetVisible(bool visible) => canvasRoot.SetActive(visible);
@@ -345,46 +399,25 @@ namespace Match3
         }
 
         // ----------------------------------------------------------------
-        // UI 생성
+        // UI 생성 (실제 게임판/다음 블록 미리보기 - 둘 다 씬에 미리 박아둘 수 없다.
+        // 메인 판은 그리드 크기가 인스펙터 설정에 따라 달라지고, 미리보기는 4x4 미니
+        // 셀을 매 조각마다 다시 칠해야 해서다. 캔버스/점수바/다음 블록 바(라벨)/조작
+        // 버튼 같은 나머지 UI는 전부 Bomoonsan > Build Game HUDs In Scene으로 씬에
+        // 미리 만들어둔다.)
         // ----------------------------------------------------------------
 
-        private void BuildUI()
+        /// <summary>nextPreviewRoot(씬에 미리 만들어둔 4x4 바 안의 빈 자리) 밑에 실제로
+        /// 색칠할 미니 셀 16개를 만든다.</summary>
+        private void BuildNextPreviewGrid()
         {
-            canvasRoot = UIFactory.CreateGameCanvasRoot(transform, "TetrisCanvas");
-            UIFactory.CreateGameTopBar(canvasRoot.transform, TopBarHeight, out scoreText, out timerText);
-            BuildNextPreview(canvasRoot.transform);
-            BuildBoardRoot(canvasRoot.transform);
-            BuildControlBar(canvasRoot.transform);
-        }
-
-        private void BuildNextPreview(Transform parent)
-        {
-            var bar = UIFactory.CreateRect("NextBar", parent);
-            bar.anchorMin = new Vector2(0, 1);
-            bar.anchorMax = new Vector2(1, 1);
-            bar.pivot = new Vector2(0.5f, 1);
-            bar.sizeDelta = new Vector2(0, NextPanelHeight);
-            bar.anchoredPosition = new Vector2(0, -TopBarHeight);
-
-            var label = UIFactory.CreateText("NextLabel", bar, "다음 블록", 44, TextAnchor.MiddleLeft);
-            var labelRt = label.rectTransform;
-            labelRt.anchorMin = new Vector2(0, 0);
-            labelRt.anchorMax = new Vector2(0.5f, 1);
-            labelRt.offsetMin = new Vector2(40, 0);
-            labelRt.offsetMax = Vector2.zero;
-
-            var previewRoot = UIFactory.CreateRect("NextPreview", bar);
-            previewRoot.anchorMin = previewRoot.anchorMax = new Vector2(0.75f, 0.5f);
-            previewRoot.pivot = new Vector2(0.5f, 0.5f);
-            float miniCell = 32f;
-            previewRoot.sizeDelta = new Vector2(miniCell * 4, miniCell * 4);
-
+            // 실제 보드 칸 크기(cellSize)와 똑같이 맞춰서, 다음 블록도 실제 크기 그대로 보이게 한다.
+            float miniCell = cellSize;
             nextPreviewCells = new Image[4, 4];
             for (int y = 0; y < 4; y++)
             {
                 for (int x = 0; x < 4; x++)
                 {
-                    var img = UIFactory.CreateImage($"Mini_{x}_{y}", previewRoot, EmptyCellColor);
+                    var img = UIFactory.CreateImage($"Mini_{x}_{y}", nextPreviewRoot, EmptyCellColor);
                     var rt = img.rectTransform;
                     rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                     rt.pivot = new Vector2(0.5f, 0.5f);
@@ -408,7 +441,7 @@ namespace Match3
             boardRoot.sizeDelta = new Vector2(boardW, boardH);
             boardRoot.anchoredPosition = new Vector2(0, (ControlBarHeight - TopBarHeight - NextPanelHeight) / 2f);
 
-            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
+            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.8f));
             UIFactory.StretchFull(boardBg.rectTransform);
 
             Canvas.ForceUpdateCanvases();
@@ -442,45 +475,14 @@ namespace Match3
             return new Vector2(x, y);
         }
 
-        private void BuildControlBar(Transform parent)
+        /// <summary>씬에 미리 만들어둔 조작 버튼 5개에 클릭/누르고 있기 동작을 연결한다.</summary>
+        private void WireControlButtons()
         {
-            var bar = UIFactory.CreateRect("ControlBar", parent);
-            bar.anchorMin = new Vector2(0, 0);
-            bar.anchorMax = new Vector2(1, 0);
-            bar.pivot = new Vector2(0.5f, 0);
-            bar.sizeDelta = new Vector2(0, ControlBarHeight);
-            bar.anchoredPosition = Vector2.zero;
-
-            float btnW = 170f;
-            float btnH = 150f;
-            float spacing = 20f;
-            string[] labels = { "◀", "▶", "회전", "▼", "드롭" };
-            float totalW = labels.Length * btnW + (labels.Length - 1) * spacing;
-
-            for (int i = 0; i < labels.Length; i++)
-            {
-                float x = -totalW / 2f + btnW / 2f + i * (btnW + spacing);
-                var button = UIFactory.CreateButton($"CtrlBtn_{i}", bar, labels[i], new Vector2(x, 0), new Vector2(btnW, btnH));
-
-                switch (i)
-                {
-                    case 0:
-                        AddRepeatingTrigger(button.gameObject, () => TryMove(-1, 0));
-                        break;
-                    case 1:
-                        AddRepeatingTrigger(button.gameObject, () => TryMove(1, 0));
-                        break;
-                    case 2:
-                        button.onClick.AddListener(TryRotate);
-                        break;
-                    case 3:
-                        AddRepeatingTrigger(button.gameObject, SoftDrop);
-                        break;
-                    case 4:
-                        button.onClick.AddListener(HardDrop);
-                        break;
-                }
-            }
+            AddRepeatingTrigger(leftButton.gameObject, () => TryMove(-1, 0));
+            AddRepeatingTrigger(rightButton.gameObject, () => TryMove(1, 0));
+            rotateButton.onClick.AddListener(TryRotate);
+            AddRepeatingTrigger(softDropButton.gameObject, SoftDrop);
+            hardDropButton.onClick.AddListener(HardDrop);
         }
 
         /// <summary>버튼을 누르고 있는 동안 action을 반복 호출한다 (좌/우 이동, 소프트드롭용).</summary>
@@ -591,3 +593,4 @@ namespace Match3
         }
     }
 }
+

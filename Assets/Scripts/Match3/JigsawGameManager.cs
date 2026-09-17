@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -39,13 +40,15 @@ namespace Match3
         private const float PreviewBarHeight = 200f;
         private const float HintBarHeight = 110f;
 
-        private GameObject canvasRoot;
+        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [SerializeField] private GameObject canvasRoot;
+        [SerializeField] private TextMeshProUGUI scoreText;
+        [SerializeField] private TextMeshProUGUI timerText;
+        [SerializeField] private TextMeshProUGUI hintText;
+        [SerializeField] private Image previewImage;
+
         private RectTransform boardRoot;
         private Image[] tileImages;
-        private Image previewImage;
-        private Text scoreText;
-        private Text timerText;
-        private Text hintText;
 
         // 번갈아 쓰는 두 사진. Resources.Load는 처음 쓸 때만 하고, 자른 조각 스프라이트도
         // 이미지당 한 번만 만들어 재사용한다(고정된 사진이라 매 판 다시 자를 필요가 없다).
@@ -71,8 +74,47 @@ namespace Match3
         private void Awake()
         {
             pieceCount = gridSize * gridSize;
-            BuildUI();
+
+            if (!ValidateSceneRefs())
+                return;
+
+            // BuildBoardRoot의 화면 맞춤 계산(Canvas.ForceUpdateCanvases)이 실제 캔버스
+            // 크기를 읽어야 하는데, 씬에 미리 만들어둔 캔버스는 꺼진 채로 저장돼 있어서
+            // 꺼진 상태로는 크기가 0으로 잡혀 보드가 지나치게 작아진다 - 계산하는 동안만
+            // 잠깐 켜둔다.
+            canvasRoot.SetActive(true);
+            BuildBoardRoot(canvasRoot.transform);
             SetVisible(false);
+        }
+
+        /// <summary>
+        /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
+        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
+        /// 돌리거나 수동으로 연결하면 된다.
+        /// </summary>
+        private bool ValidateSceneRefs()
+        {
+            var missing = new List<string>();
+            void Check(UnityEngine.Object obj, string fieldName)
+            {
+                if (obj == null)
+                    missing.Add(fieldName);
+            }
+
+            Check(canvasRoot, nameof(canvasRoot));
+            Check(scoreText, nameof(scoreText));
+            Check(timerText, nameof(timerText));
+            Check(hintText, nameof(hintText));
+            Check(previewImage, nameof(previewImage));
+
+            if (missing.Count == 0)
+                return true;
+
+            Debug.LogError(
+                $"[JigsawGameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
+                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                this);
+            return false;
         }
 
         public void SetVisible(bool visible) => canvasRoot.SetActive(visible);
@@ -243,42 +285,11 @@ namespace Match3
         }
 
         // ----------------------------------------------------------------
-        // UI 생성
+        // 보드 루트 생성 (실제 게임판 - 그리드 크기가 인스펙터 설정에 따라 달라져서
+        // 씬에 미리 박아둘 수 없다. 캔버스/점수바/완성본 미리보기 바/안내문구 같은
+        // 나머지 UI는 전부 Bomoonsan > Build Game HUDs In Scene으로 씬에 미리
+        // 만들어둔다.)
         // ----------------------------------------------------------------
-
-        private void BuildUI()
-        {
-            canvasRoot = UIFactory.CreateGameCanvasRoot(transform, "JigsawCanvas");
-            UIFactory.CreateGameTopBar(canvasRoot.transform, TopBarHeight, out scoreText, out timerText);
-            BuildPreviewBar(canvasRoot.transform);
-            BuildBoardRoot(canvasRoot.transform);
-            hintText = UIFactory.CreateGameHint(canvasRoot.transform, HintBarHeight, "조각을 두 번 탭해 자리를 바꾸세요");
-        }
-
-        private void BuildPreviewBar(Transform parent)
-        {
-            var bar = UIFactory.CreateRect("PreviewBar", parent);
-            bar.anchorMin = new Vector2(0, 1);
-            bar.anchorMax = new Vector2(1, 1);
-            bar.pivot = new Vector2(0.5f, 1);
-            bar.sizeDelta = new Vector2(0, PreviewBarHeight);
-            bar.anchoredPosition = new Vector2(0, -TopBarHeight);
-
-            var label = UIFactory.CreateText("PreviewLabel", bar, "완성 모습", 44, TextAnchor.MiddleLeft);
-            var labelRt = label.rectTransform;
-            labelRt.anchorMin = new Vector2(0, 0);
-            labelRt.anchorMax = new Vector2(0.5f, 1);
-            labelRt.offsetMin = new Vector2(40, 0);
-            labelRt.offsetMax = Vector2.zero;
-
-            float thumbSize = PreviewBarHeight - 40f;
-            previewImage = UIFactory.CreateImage("PreviewThumb", bar, Color.white);
-            var thumbRt = previewImage.rectTransform;
-            thumbRt.anchorMin = thumbRt.anchorMax = new Vector2(0.72f, 0.5f);
-            thumbRt.pivot = new Vector2(0.5f, 0.5f);
-            thumbRt.sizeDelta = new Vector2(thumbSize, thumbSize);
-            previewImage.preserveAspect = true;
-        }
 
         private void BuildBoardRoot(Transform parent)
         {
@@ -291,7 +302,7 @@ namespace Match3
             boardRoot.sizeDelta = new Vector2(boardW, boardH);
             boardRoot.anchoredPosition = new Vector2(0, (HintBarHeight - TopBarHeight - PreviewBarHeight) / 2f);
 
-            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.25f));
+            var boardBg = UIFactory.CreateImage("BoardBackground", boardRoot, new Color(0, 0, 0, 0.8f));
             UIFactory.StretchFull(boardBg.rectTransform);
 
             Canvas.ForceUpdateCanvases();

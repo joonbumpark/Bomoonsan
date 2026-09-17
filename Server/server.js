@@ -6,6 +6,11 @@
 //      -> 둘 다 제출하면(또는 타임아웃되면) 승/패/무 판정 후 각자에게 결과 전송
 //      -> 해당 게임의 리더보드(점수 내림차순)에 기록.
 //
+// 싱글 플레이는 매칭이 없으므로 submit_solo_score로 바로 리더보드에 기록한다 -
+// 대전이든 싱글이든 같은 리더보드를 쓰고, 같은 이름(닉네임)의 기록은 항상 더 높은
+// 점수만 남긴다 (addToLeaderboard 참고). 기록 직후엔 결과 화면의 "내 등수/전체
+// 유저" 표시용으로 leaderboard_rank 메시지를 그 자리에서 바로 보내준다(getRank).
+//
 // 게임 종류(GAMES)마다 큐와 리더보드가 독립적이라, 다른 게임을 고른 플레이어끼리는
 // 매칭되지 않는다. 보안/부정행위 방지는 신경 쓰지 않는다 (클라이언트가 보낸 점수를
 // 그대로 신뢰한다).
@@ -58,12 +63,32 @@ function saveLeaderboards() {
   }
 }
 
+// 같은 이름(닉네임)의 기록은 하나만 유지하고, 새 점수가 기존 기록보다 높을 때만
+// 갱신한다 (싱글/대전 어느 쪽에서 냈든 동일하게 적용).
 function addToLeaderboard(game, name, score) {
   const list = leaderboards[game] || (leaderboards[game] = []);
-  list.push({ name, score, date: new Date().toISOString() });
+  const existing = list.find((entry) => entry.name === name);
+
+  if (existing) {
+    if (score <= existing.score) return;
+    existing.score = score;
+    existing.date = new Date().toISOString();
+  } else {
+    list.push({ name, score, date: new Date().toISOString() });
+  }
+
   list.sort((a, b) => b.score - a.score);
   if (list.length > LEADERBOARD_MAX) list.length = LEADERBOARD_MAX;
   saveLeaderboards();
+}
+
+// addToLeaderboard 직후에 그 이름의 등수(1부터)와 전체 기록 수를 구한다 - 결과
+// 화면의 "내 등수/전체 유저" 표시용. 리더보드가 LEADERBOARD_MAX로 잘려 있으면
+// 그 밖으로 밀려난(너무 낮은 점수의) 기록은 안 잡힐 수 있다.
+function getRank(game, name) {
+  const list = leaderboards[game] || [];
+  const index = list.findIndex((entry) => entry.name === name);
+  return { rank: index === -1 ? 0 : index + 1, total: list.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -128,8 +153,16 @@ function finishMatch(matchId) {
   send(p0, { type: 'match_result', matchId, result: result0, yourScore: s0, opponentScore: s1 });
   send(p1, { type: 'match_result', matchId, result: result1, yourScore: s1, opponentScore: s0 });
 
-  if (match.names[0]) addToLeaderboard(match.game, match.names[0], s0);
-  if (match.names[1]) addToLeaderboard(match.game, match.names[1], s1);
+  if (match.names[0]) {
+    addToLeaderboard(match.game, match.names[0], s0);
+    const { rank, total } = getRank(match.game, match.names[0]);
+    send(p0, { type: 'leaderboard_rank', game: match.game, rank, total });
+  }
+  if (match.names[1]) {
+    addToLeaderboard(match.game, match.names[1], s1);
+    const { rank, total } = getRank(match.game, match.names[1]);
+    send(p1, { type: 'leaderboard_rank', game: match.game, rank, total });
+  }
 }
 
 function removeFromQueue(ws) {
@@ -206,6 +239,16 @@ wss.on('connection', (ws) => {
         if (match.scores.every((s) => s !== null)) {
           finishMatch(msg.matchId);
         }
+        break;
+      }
+
+      case 'submit_solo_score': {
+        const game = normalizeGame(msg.game);
+        const name = String(msg.name || ws.playerName || 'Player').slice(0, 20) || 'Player';
+        const score = Math.max(0, Math.floor(Number(msg.score)) || 0);
+        addToLeaderboard(game, name, score);
+        const { rank, total } = getRank(game, name);
+        send(ws, { type: 'leaderboard_rank', game, rank, total });
         break;
       }
 

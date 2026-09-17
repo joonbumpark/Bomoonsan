@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,7 +17,7 @@ namespace Match3
     /// </summary>
     public class MatchmakingPopup : MonoBehaviour
     {
-        [SerializeField] private Text statusText;
+        [SerializeField] private TextMeshProUGUI statusText;
         [SerializeField] private Button cancelButton;
 
         public event Action CancelClicked;

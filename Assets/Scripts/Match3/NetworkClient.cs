@@ -29,6 +29,7 @@ namespace Match3
         public event Action<string, int, string> OnMatched; // matchId, seed, opponentName
         public event Action<string, int, int> OnMatchResult; // result(win/lose/draw), yourScore, opponentScore
         public event Action<List<LeaderboardEntry>> OnLeaderboard;
+        public event Action<string, int, int> OnLeaderboardRank; // game, rank(1부터), total
         public event Action<string> OnError;
 
         private WebSocket socket;
@@ -98,6 +99,11 @@ namespace Match3
                     var lb = JsonUtility.FromJson<LeaderboardMessage>(json);
                     OnLeaderboard?.Invoke(new List<LeaderboardEntry>(lb.entries ?? Array.Empty<LeaderboardEntry>()));
                     break;
+
+                case "leaderboard_rank":
+                    var rank = JsonUtility.FromJson<LeaderboardRankMessage>(json);
+                    OnLeaderboardRank?.Invoke(rank.game, rank.rank, rank.total);
+                    break;
             }
         }
 
@@ -114,6 +120,13 @@ namespace Match3
         public void SubmitScore(string matchId, int score)
         {
             SendJson(new SubmitScoreMessage { matchId = matchId, score = score });
+        }
+
+        /// <summary>싱글 플레이는 매칭이 없으므로 매치 없이 바로 리더보드에 점수를 낸다.
+        /// 서버는 같은 이름의 기존 기록보다 높을 때만 갱신한다.</summary>
+        public void SubmitSoloScore(string playerName, string game, int score)
+        {
+            SendJson(new SubmitSoloScoreMessage { name = playerName, game = game, score = score });
         }
 
         public void RequestLeaderboard(string game)
@@ -147,8 +160,10 @@ namespace Match3
         [Serializable] private class JoinQueueMessage { public string type = "join_queue"; public string name; public string game; }
         [Serializable] private class GetLeaderboardMessage { public string type = "get_leaderboard"; public string game; }
         [Serializable] private class SubmitScoreMessage { public string type = "submit_score"; public string matchId; public int score; }
+        [Serializable] private class SubmitSoloScoreMessage { public string type = "submit_solo_score"; public string name; public string game; public int score; }
         [Serializable] private class MatchedMessage { public string type; public string matchId; public int seed; public string opponentName; }
         [Serializable] private class MatchResultMessage { public string type; public string matchId; public string result; public int yourScore; public int opponentScore; }
         [Serializable] private class LeaderboardMessage { public string type; public LeaderboardEntry[] entries; }
+        [Serializable] private class LeaderboardRankMessage { public string type; public string game; public int rank; public int total; }
     }
 }

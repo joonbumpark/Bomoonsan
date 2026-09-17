@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -46,9 +47,9 @@ namespace Match3
 
         private GameObject canvasRoot;
         private Image[] pads;
-        private Text scoreText;
-        private Text timerText;
-        private Text statusText;
+        private TextMeshProUGUI scoreText;
+        private TextMeshProUGUI timerText;
+        private TextMeshProUGUI statusText;
 
         private int score;
         private bool roundActive;

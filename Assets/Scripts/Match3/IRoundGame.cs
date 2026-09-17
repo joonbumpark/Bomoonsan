@@ -56,5 +56,10 @@ namespace Match3
             GameKind.Jigsaw => "직소 퍼즐",
             _ => kind.ToString(),
         };
+
+        /// <summary>매치3만 대전(매칭/서버 리더보드)을 지원한다 - 나머지는 싱글 전용이라
+        /// AppFlowManager가 싱글/대전 선택 팝업을 안 띄우고, 점수도 서버 대신 기기에만
+        /// 남긴다 (LocalLeaderboardStore).</summary>
+        public static bool SupportsVersusMode(this GameKind kind) => kind == GameKind.Match3;
     }
 }
