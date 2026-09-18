@@ -15,11 +15,17 @@ namespace Match3
     /// 리더보드도 게임에 따라 저장 위치가 다르다: 매치3는 싱글/대전 어느 쪽이든 라운드가
     /// 끝나면 서버에 자동 기록되고(같은 닉네임이면 더 높은 점수만 남음), 나머지 게임은
     /// 대전이 없어서 서버 대신 이 기기에만 기록한다(LocalLeaderboardStore, 같은 규칙).
-    /// 결과 화면의 등수 표시(ResultPopup.SetRank)도 매치3는 서버 응답(OnLeaderboardRank)을
-    /// 기다렸다가 채우고, 나머지는 기록 직후 로컬에서 바로 계산해서 채운다.
+    /// 결과 화면의 리더보드 스크롤뷰(ResultPopup.SetLeaderboard)도 매치3는 기록 직후
+    /// 서버에 전체 목록을 다시 요청해서(OnLeaderboard) 채우고, 나머지는 기록 직후 로컬
+    /// 목록을 바로 읽어서 채운다.
     ///
-    /// 닉네임은 입력 UI 없이 최초 1회 자동 생성해서 PlayerPrefs에 저장해두고 계속 재사용한다
-    /// (ResolveNickname).
+    /// 승패 이미지(ResultPopup.SetMatchOutcome)는 대전 매치 결과가 있을 때만 켜진다 -
+    /// 싱글 플레이는 항상 null을 넘겨서 꺼둔다.
+    ///
+    /// 닉네임은 게임 선택 화면의 입력창(GameSelectPopup.nicknameInput)에 입력받는다. 게임을
+    /// 고르는 순간(OnGameSelected) 값을 확정해서 PlayerPrefs에 저장한다 - 비워둔 채로
+    /// 고르면 그 순간 랜덤 닉네임을 만들어 대신 쓴다. 다음에 화면을 다시 열면 마지막으로
+    /// 쓴 닉네임(랜덤 생성분 포함)이 입력창에 미리 채워진다(ShowGameSelect).
     ///
     /// 아래 씬 UI 필드는 전부 인스펙터에서 미리 연결돼 있어야 한다 - Canvas/패널을
     /// 코드로 매번 새로 만드는 대신 Bomoonsan > Build App Shell In Scene 메뉴
@@ -76,7 +82,7 @@ namespace Match3
             network.OnQueued += HandleQueued;
             network.OnMatched += HandleMatched;
             network.OnMatchResult += HandleMatchResult;
-            network.OnLeaderboardRank += HandleLeaderboardRank;
+            network.OnLeaderboard += HandleLeaderboard;
             network.OnError += HandleNetworkError;
 
             WireButtons();
@@ -188,6 +194,7 @@ namespace Match3
 
         private void ShowGameSelect()
         {
+            gameSelectPopup.SetNicknameInputText(PlayerPrefs.GetString(NicknamePrefKey, string.Empty));
             SetActivePanel(gameSelectPopup.gameObject);
             gameSelectPopup.Show();
         }
@@ -207,6 +214,7 @@ namespace Match3
         private void OnGameSelected(GameKind kind)
         {
             selectedGame = kind;
+            ApplyNicknameInput();
 
             if (kind.SupportsVersusMode())
                 ShowPlayModePopup();
@@ -295,36 +303,42 @@ namespace Match3
                 if (selectedGame.SupportsVersusMode())
                 {
                     // 대전과 동일한 서버 리더보드에, 매치 없이 바로 기록한다 (같은
-                    // 닉네임이면 서버가 더 높은 점수만 남긴다). 등수는 서버가
-                    // leaderboard_rank로 알려주면 HandleLeaderboardRank에서 채운다.
-                    EnsureConnectedThen(() => network.SubmitSoloScore(name, selectedGame.ToServerId(), finalScore));
+                    // 닉네임이면 서버가 더 높은 점수만 남긴다). 목록은 기록 직후 다시
+                    // 요청해서 HandleLeaderboard가 채운다.
+                    string game = selectedGame.ToServerId();
+                    EnsureConnectedThen(() =>
+                    {
+                        network.SubmitSoloScore(name, game, finalScore);
+                        network.RequestLeaderboard(game);
+                    });
                 }
                 else
                 {
                     // 대전이 없는 게임은 서버 리더보드가 없다 - 기기에만 기록하고,
-                    // 등수도 서버 응답 없이 바로 계산해서 채운다.
+                    // 목록도 서버 응답 없이 바로 읽어서 채운다.
                     LocalLeaderboardStore.RecordScore(selectedGame, name, finalScore);
-                    var (rank, total) = LocalLeaderboardStore.GetRank(selectedGame, name);
-                    resultPopup.SetRank(rank, total);
+                    resultPopup.SetLeaderboard(LocalLeaderboardStore.GetEntries(selectedGame), name);
                 }
             }
         }
 
         private void HandleMatchResult(string result, int yourScore, int opponentScore)
         {
-            // 승/패/무나 상대 점수는 지금 결과 팝업엔 별도 자리가 없다 - 일단 내 점수와
-            // 등수만 다른 결과 화면과 동일하게 보여준다. 등수는 곧 이어서 서버가 보내는
-            // leaderboard_rank로 채워진다.
+            // 상대 점수는 지금 결과 팝업엔 별도 자리가 없다 - 내 점수만 보여주고, 승패는
+            // 이미지로 표시한다. 리더보드 목록은 다시 요청해서 HandleLeaderboard가 채운다.
             ShowResult(yourScore);
+            resultPopup.SetMatchOutcome(result);
+            network.RequestLeaderboard(selectedGame.ToServerId());
         }
 
-        private void HandleLeaderboardRank(string game, int rank, int total)
+        private void HandleLeaderboard(List<LeaderboardEntry> entries)
         {
-            // 게임을 바꾼 뒤에 뒤늦게 도착한 응답이면 무시한다.
-            if (game != selectedGame.ToServerId())
+            // 결과 화면이 떠 있을 때 도착한 응답만 반영한다 - 게임을 바꾼 뒤에 뒤늦게
+            // 도착한 응답은 무시한다 (서버 응답에 game 구분이 없어 이 정도로 방어한다).
+            if (!resultPopup.gameObject.activeSelf)
                 return;
 
-            resultPopup.SetRank(rank, total);
+            resultPopup.SetLeaderboard(entries, ResolveNickname());
         }
 
         private void HandleNetworkError(string message)
@@ -338,15 +352,27 @@ namespace Match3
         // 닉네임
         // ----------------------------------------------------------------
 
-        /// <summary>입력 UI 없이 최초 1회 자동으로 만들어 PlayerPrefs에 저장해두고 계속
-        /// 재사용한다 (대전 상대에게 보이는 이름이자 리더보드에 올라가는 이름).</summary>
+        /// <summary>게임 선택 화면의 입력창 값을 확정해서 PlayerPrefs에 저장한다 - 비어
+        /// 있으면 랜덤 닉네임을 만들어 대신 저장한다. OnGameSelected에서 호출한다.</summary>
+        private void ApplyNicknameInput()
+        {
+            string input = gameSelectPopup.NicknameInputText?.Trim();
+            string name = string.IsNullOrEmpty(input) ? GenerateRandomNickname() : input;
+            PlayerPrefs.SetString(NicknamePrefKey, name);
+        }
+
+        private static string GenerateRandomNickname() => "Player" + UnityEngine.Random.Range(1000, 9999);
+
+        /// <summary>PlayerPrefs에 저장된(ApplyNicknameInput이 게임 선택 순간에 채워둔) 현재
+        /// 닉네임을 읽는다 (대전 상대에게 보이는 이름이자 리더보드에 올라가는 이름). 게임
+        /// 선택을 거치지 않고 호출되는 경우를 대비한 안전망으로, 값이 없으면 새로 만든다.</summary>
         private string ResolveNickname()
         {
             string saved = PlayerPrefs.GetString(NicknamePrefKey, string.Empty);
             if (!string.IsNullOrEmpty(saved))
                 return saved;
 
-            string name = "Player" + UnityEngine.Random.Range(1000, 9999);
+            string name = GenerateRandomNickname();
             PlayerPrefs.SetString(NicknamePrefKey, name);
             return name;
         }

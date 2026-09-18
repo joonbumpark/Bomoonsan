@@ -162,6 +162,48 @@ namespace Match3
             return rt;
         }
 
+        /// <summary>
+        /// 흰 배경 박스 + placeholder/입력 텍스트를 가진 한 줄짜리 TMP_InputField를 만든다.
+        /// 표준 TMP 입력창 구조(Text Area에 RectMask2D + Placeholder + Text)를 그대로 따른다.
+        /// </summary>
+        public static TMP_InputField CreateInputField(string name, Transform parent, string placeholder, Vector2 pixelOffset, Vector2 size)
+        {
+            var rt = CreateRect(name, parent);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pixelOffset;
+
+            var bgImage = rt.gameObject.AddComponent<Image>();
+            bgImage.color = new Color(1f, 1f, 1f, 0.92f);
+
+            var inputField = rt.gameObject.AddComponent<TMP_InputField>();
+
+            var textArea = CreateRect("Text Area", rt);
+            StretchFull(textArea);
+            textArea.offsetMin = new Vector2(24, 8);
+            textArea.offsetMax = new Vector2(-24, -8);
+            textArea.gameObject.AddComponent<RectMask2D>();
+
+            var placeholderText = CreateText("Placeholder", textArea, placeholder, 44, TextAnchor.MiddleLeft);
+            placeholderText.fontStyle = FontStyles.Italic;
+            placeholderText.color = new Color(0f, 0f, 0f, 0.4f);
+            StretchFull(placeholderText.rectTransform);
+
+            var valueText = CreateText("Text", textArea, string.Empty, 44, TextAnchor.MiddleLeft);
+            valueText.color = Color.black;
+            StretchFull(valueText.rectTransform);
+
+            inputField.textViewport = textArea;
+            inputField.textComponent = valueText;
+            inputField.placeholder = placeholderText;
+            inputField.characterLimit = 16;
+            inputField.customCaretColor = true;
+            inputField.caretColor = Color.black;
+
+            return inputField;
+        }
+
         public static Button CreateButton(string name, Transform parent, string label, Vector2 pixelOffset, Vector2? size = null)
         {
             var rt = CreateRect(name, parent);
