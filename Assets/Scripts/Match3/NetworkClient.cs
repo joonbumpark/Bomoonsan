@@ -15,14 +15,14 @@ namespace Match3
     }
 
     /// <summary>
-    /// 대전 서버(Server/server.js, fly.io에 배포)와의 WebSocket 통신을 담당한다.
+    /// 대전 서버(Server/server.js, GCP Cloud Run에 배포)와의 WebSocket 통신을 담당한다.
     /// 큐 참가 -> 매칭(같은 시드 수신) -> 점수 제출 -> 승패 수신, 리더보드 조회까지 처리한다.
     /// 프로토콜은 한 줄짜리 JSON 메시지이며 서버 쪽 구현과 짝을 이룬다. 보안은 신경 쓰지 않는다
     /// (클라이언트가 보고하는 점수를 서버가 그대로 신뢰한다).
     /// </summary>
     public class NetworkClient : MonoBehaviour
     {
-        public string serverUrl = "wss://bomoonsan-match3.fly.dev";
+        public string serverUrl = "wss://bomoonsan-match3-444961358480.asia-northeast3.run.app";
 
         public event Action OnOpen;
         public event Action OnQueued;
