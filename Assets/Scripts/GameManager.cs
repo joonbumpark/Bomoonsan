@@ -10,9 +10,6 @@ namespace Mountains
         public Player Player;
         [Tooltip("비워두면 씬에서 자동으로 찾는다.")]
         public ProceduralTerrainMesh Terrain;
-        public int CoinAmount;
-
-        public DialogData CoinFull;
 
         [Header("플레이어 스폰")]
         [Tooltip("Player가 비어 있으면 게임 시작 시 이 데이터로 CharacterManager가 만든다.")]
@@ -44,7 +41,7 @@ namespace Mountains
 
             if (Terrain == null)
             {
-                Terrain = FindObjectOfType<ProceduralTerrainMesh>();
+                Terrain = FindFirstObjectByType<ProceduralTerrainMesh>();
             }
         }
 
@@ -130,16 +127,6 @@ namespace Mountains
             float angle = angles[index % angles.Length];
             float distance = 2.5f + (index / angles.Length) * 1.5f;
             return Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, 0f, -distance);
-        }
-
-        public void IncCoin()
-        {
-            CoinAmount++;
-
-            if (CoinAmount >= 10)
-            {
-                DialogUI.Instance.Play(CoinFull);
-            }
         }
 
         // 월드 XZ 좌표(x, z)의 지형 높이에 맞춘 월드 위치를 구한다. WorldToGrid/

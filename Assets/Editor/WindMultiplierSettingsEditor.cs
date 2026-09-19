@@ -74,7 +74,7 @@ namespace Mountains
         // (예: 0.4배가 적용된 상태에서 재캡처 → 다음 적용은 0.16배)
         static void WarnIfMaterialsAreOverridden()
         {
-            foreach (var applier in Object.FindObjectsOfType<WindMultiplierApplier>())
+            foreach (var applier in Object.FindObjectsByType<WindMultiplierApplier>(FindObjectsSortMode.None))
             {
                 if (Mathf.Approximately(applier.multiplier, 1f))
                 {

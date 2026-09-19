@@ -5,7 +5,7 @@ namespace Mountains
 {
     // CharacterManager.CreatePathWalkerNpc를 통해, 플레이어가 가까이 오면 지정한
     // pathPoints를 따라 걷는 NPC를 스폰하는 액션. 스폰 자체는 순간적이라 즉시 완료 처리한다.
-    public class SpawnPathWalkerNpcAction : TriggerAction
+    public class SpawnPathWalkerNpcAction : SpawnNpcActionBase
     {
         public CharacterData characterData;
         [Tooltip("비워두면 이 액션이 붙어있는 오브젝트의 위치에 스폰한다.")]
@@ -28,6 +28,8 @@ namespace Mountains
 
             Vector3 position = spawnPoint != null ? spawnPoint.position : transform.position;
             var npcGo = CharacterManager.Instance.CreatePathWalkerNpc(characterData, position, pathPoints);
+
+            RegisterSpawned(npcGo);
 
             var walker = npcGo != null ? npcGo.GetComponent<NpcPathWalker>() : null;
             if (walker != null)

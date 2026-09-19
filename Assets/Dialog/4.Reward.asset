@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: 4.Reward
   m_EditorClassIdentifier: 
   lines:
-  - character: {fileID: 0}
+  - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
     text: "\uC774\uAC8C \uADF8 \uAE08\uD654\uC8FC\uBA38\uB2C8\uAD6C\uB098"

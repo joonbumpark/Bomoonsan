@@ -6,7 +6,7 @@ namespace Mountains
     // NpcFollower(플레이어를 계속 쫓아옴)와 반대로, 평소엔 제자리에 머물다가 플레이어가
     // detectRadius 안에 들어오면 pathPoints를 순서대로 따라 걷는 NPC — 안내원/순찰 NPC 등에 쓴다.
     [RequireComponent(typeof(NavMeshAgent))]
-    public class NpcPathWalker : MonoBehaviour
+    public class NpcPathWalker : MonoBehaviour, INpcBrain
     {
         [Tooltip("비워두면 태그로 자동 탐색한다.")]
         public Transform player;
@@ -133,7 +133,10 @@ namespace Mountains
                     _agent.isStopped = true;
                     if (destroyOnArrival)
                     {
-                        Destroy(gameObject);
+                        // 직접 Destroy하지 않고 공통 진입점을 거친다 — NPC 프리팹에
+                        // NpcDespawnEffect가 붙어 있으면 트리거로 치울 때와 똑같은
+                        // 소멸 연출(FX/트윈)이 여기서도 나온다.
+                        NpcDespawner.Despawn(gameObject);
                     }
                     return;
                 }

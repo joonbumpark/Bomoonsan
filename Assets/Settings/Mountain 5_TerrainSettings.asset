@@ -57,7 +57,7 @@ MonoBehaviour:
   pathBlendWidth: 2
   pathFlattenStrength: 0.5
   pathCurveSamplesPerSegment: 4
-  pathEdgeJitter: 0.6
+  pathEdgeJitter: 1
   pathMaskResolution: 1024
   waterDepth: 8
   waterShoreBlendWidth: 6

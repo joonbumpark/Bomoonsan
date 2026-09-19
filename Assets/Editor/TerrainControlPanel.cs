@@ -66,15 +66,15 @@ namespace Mountains
 
         void Refresh()
         {
-            _terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            _terrain = Object.FindFirstObjectByType<ProceduralTerrainMesh>();
             // VegetationScatter는 보통 지형과 같은 오브젝트에 붙는다(TerrainSceneSetup이 그렇게
             // 만든다). 다른 데 붙어 있는 씬도 있을 수 있어 못 찾으면 씬 전체에서 한 번 더 찾는다.
             _scatter = _terrain != null ? _terrain.GetComponent<VegetationScatter>() : null;
             if (_scatter == null)
             {
-                _scatter = Object.FindObjectOfType<VegetationScatter>();
+                _scatter = Object.FindFirstObjectByType<VegetationScatter>();
             }
-            _wind = Object.FindObjectOfType<WindMultiplierApplier>();
+            _wind = Object.FindFirstObjectByType<WindMultiplierApplier>();
 
             SyncEditor(ref _terrainSettingsEditor, _terrain != null ? _terrain.settings : null);
             SyncEditor(ref _vegetationSettingsEditor, _scatter != null ? _scatter.settings : null);

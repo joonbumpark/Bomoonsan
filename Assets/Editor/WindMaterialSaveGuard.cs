@@ -17,7 +17,7 @@ namespace Mountains
     {
         static string[] OnWillSaveAssets(string[] paths)
         {
-            var appliers = Object.FindObjectsOfType<WindMultiplierApplier>();
+            var appliers = Object.FindObjectsByType<WindMultiplierApplier>(FindObjectsSortMode.None);
             if (appliers.Length == 0)
             {
                 return paths;
@@ -36,7 +36,7 @@ namespace Mountains
 
         static void ReapplyAll()
         {
-            foreach (var applier in Object.FindObjectsOfType<WindMultiplierApplier>())
+            foreach (var applier in Object.FindObjectsByType<WindMultiplierApplier>(FindObjectsSortMode.None))
             {
                 applier.Apply();
             }

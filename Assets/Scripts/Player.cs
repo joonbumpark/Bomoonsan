@@ -11,7 +11,7 @@ namespace Mountains
         {
             if (GameManager == null)
             {
-                GameManager = FindObjectOfType<GameManager>();
+                GameManager = FindFirstObjectByType<GameManager>();
             }
         }
     }

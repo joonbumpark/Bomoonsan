@@ -30,21 +30,21 @@ Material:
     m_Ints: []
     m_Floats:
     - _AmbientStrength: 0
-    - _FoamStrength: 1
-    - _FoamWidth: 0.041
+    - _FoamStrength: 0.228
+    - _FoamWidth: 0.057
     - _FresnelPower: 8
     - _FresnelStrength: 0
     - _ReflectionBase: 0.5
-    - _ReflectionRoughness: 0
+    - _ReflectionRoughness: 0.209
     - _ReflectionStrength: 1
     - _SpecularPower: 256
     - _SpecularStrength: 4
-    - _WaveScale: 1.02
-    - _WaveSpeed: 4
-    - _WaveStrength: 0.006
+    - _WaveScale: 0.37
+    - _WaveSpeed: 1
+    - _WaveStrength: 0.045
     m_Colors:
-    - _DeepColor: {r: 0, g: 0.3931823, b: 0.8396226, a: 0.8156863}
-    - _FoamColor: {r: 0.6509434, g: 0.6509434, b: 0.6509434, a: 1}
-    - _ShallowColor: {r: 0.25943395, g: 0.61302, b: 1, a: 0.85882354}
+    - _DeepColor: {r: 0.254717, g: 0.18644892, b: 0, a: 0.8156863}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShallowColor: {r: 0.3962264, g: 0.3962264, b: 0.3962264, a: 0.85882354}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -7,7 +7,7 @@ namespace Mountains
     // "특정 위치로 플레이어를 유도" 같은 모드를 얹어 고도화할 예정이라, 지금은 팔로우
     // 하나만 확실하게 동작하게 만든다.
     [RequireComponent(typeof(NavMeshAgent))]
-    public class NpcFollower : MonoBehaviour
+    public class NpcFollower : MonoBehaviour, INpcBrain
     {
         [Tooltip("비워두면 태그로 자동 탐색한다.")]
         public Transform player;

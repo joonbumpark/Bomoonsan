@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3685689072095217697}
   - component: {fileID: 420877596917126115}
   - component: {fileID: 5490958301733074501}
-  - component: {fileID: 1140028924268668602}
+  - component: {fileID: 4220747455591525713}
   m_Layer: 0
   m_Name: Npc
   m_TagString: Untagged
@@ -79,7 +79,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 2
-  m_BaseOffset: 0
+  m_BaseOffset: -0.2
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!114 &420877596917126115
@@ -126,7 +126,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &1140028924268668602
+--- !u!114 &4220747455591525713
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

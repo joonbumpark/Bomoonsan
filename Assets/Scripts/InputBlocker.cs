@@ -25,6 +25,13 @@ namespace Mountains
             _blockCount = Mathf.Max(0, _blockCount - 1);
         }
 
+        // 씬을 다시 로드할 때처럼 잠금을 건 쪽이 사라지는 전환에서 쓴다 — 카운트가 남으면
+        // 새 씬에서 조작이 영영 막힌 채로 시작한다(SceneFlow가 전환 직전에 부른다).
+        public static void ResetBlocks()
+        {
+            _blockCount = 0;
+        }
+
         // 이 프로젝트는 Enter Play Mode Options에서 도메인 리로드를 꺼둬서 static 값이
         // Play 세션 사이에 그대로 남는다 — 이벤트 도중에 Play를 멈추면 카운트가 0으로
         // 안 돌아가서 다음 Play 때 조작이 영영 막히는 상태로 시작한다. 씬 로드 전에
@@ -32,7 +39,7 @@ namespace Mountains
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetOnPlay()
         {
-            _blockCount = 0;
+            ResetBlocks();
         }
     }
 }

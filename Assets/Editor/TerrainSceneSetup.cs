@@ -23,7 +23,7 @@ namespace Mountains
         [MenuItem("Mountains/Snap Selected To Terrain Y %#g")]
         public static void SnapSelectedToTerrainY()
         {
-            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            var terrain = Object.FindFirstObjectByType<ProceduralTerrainMesh>();
             if (terrain == null)
             {
                 Debug.LogWarning("[TerrainSceneSetup] ProceduralTerrainMesh를 찾을 수 없어 스냅을 건너뜁니다.");
@@ -52,7 +52,7 @@ namespace Mountains
         [MenuItem("Mountains/Create Procedural Terrain")]
         public static void CreateProceduralTerrain()
         {
-            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            var terrain = Object.FindFirstObjectByType<ProceduralTerrainMesh>();
             var go = terrain != null ? terrain.gameObject : new GameObject("ProceduralTerrain");
             if (terrain == null)
             {
@@ -115,7 +115,7 @@ namespace Mountains
         [MenuItem("Mountains/Bake NavMesh")]
         public static void BakeNavMesh()
         {
-            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            var terrain = Object.FindFirstObjectByType<ProceduralTerrainMesh>();
             if (terrain == null)
             {
                 Debug.LogWarning("[TerrainSceneSetup] ProceduralTerrainMesh를 찾을 수 없어 NavMesh 베이킹을 건너뜁니다.");
@@ -175,7 +175,7 @@ namespace Mountains
         // 비워두면 Generate()가 이 씬 이름으로 알아서 다시 구워준다.
         static void MakeTerrainAssetsIndependent(string baseName)
         {
-            var terrain = Object.FindObjectOfType<ProceduralTerrainMesh>();
+            var terrain = Object.FindFirstObjectByType<ProceduralTerrainMesh>();
             if (terrain == null)
             {
                 Debug.LogWarning("[TerrainSceneSetup] 복제된 씬에서 ProceduralTerrainMesh를 찾을 수 없어 에셋 독립화를 건너뜁니다.");
@@ -322,14 +322,14 @@ namespace Mountains
             // 이름("DialogUI")으로 찾지 않는 이유: 이 프로젝트의 대화창은 씬에 "Dialog"라는
             // 이름의 프리팹 인스턴스로 놓여 있다. 이름 규칙에 기대면 멀쩡히 있는 대화창을
             // 못 찾고 두 번째 대화창을 새로 만들어버린다.
-            var existingDialogs = Object.FindObjectsOfType<DialogUI>(true);
+            var existingDialogs = Object.FindObjectsByType<DialogUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             if (existingDialogs.Length > 0)
             {
                 PatchExistingDialogUI(existingDialogs[0]);
                 return;
             }
 
-            var canvas = Object.FindObjectOfType<Canvas>();
+            var canvas = Object.FindFirstObjectByType<Canvas>();
             if (canvas == null)
             {
                 Debug.LogWarning("[TerrainSceneSetup] Canvas를 찾을 수 없어 대화창 설정을 건너뜁니다.");
@@ -591,7 +591,7 @@ namespace Mountains
 
         static Light FindDirectionalLight()
         {
-            foreach (var light in Object.FindObjectsOfType<Light>())
+            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
             {
                 if (light.type == LightType.Directional)
                 {

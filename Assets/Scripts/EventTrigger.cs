@@ -126,18 +126,20 @@ namespace Mountains
                 yield break;
             }
 
-            int remaining = step.actions.Length;
+            // CompletionCounter는 같은 액션이 완료를 두 번 통보해도 한 번만 센다 — 손으로
+            // 세면 그런 액션 하나 때문에 아직 도는 다른 액션을 두고 다음 스텝으로 넘어간다.
+            var counter = new CompletionCounter(step.actions.Length, null);
             foreach (var action in step.actions)
             {
                 if (action == null)
                 {
-                    remaining--;
+                    counter.Signal();
                     continue;
                 }
-                action.Execute(() => remaining--);
+                action.Execute(counter.Signal);
             }
 
-            while (remaining > 0)
+            while (!counter.IsDone)
             {
                 yield return null;
             }

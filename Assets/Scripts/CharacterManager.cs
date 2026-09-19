@@ -152,8 +152,8 @@ namespace Mountains
             // 조이스틱을 먼저 찾고 그 조이스틱이 속한 Canvas를 기준으로 삼는다.
             // 이름으로 찾으면("Fixed Joystick") Joystick Pack의 다른 변형(Floating Joystick
             // 등)으로 바꿔 쓸 때마다 다시 안 맞는다 — 타입으로 찾아서 어떤 변형이든 잡는다.
-            var joystick = Object.FindObjectOfType<Joystick>(true);
-            var canvas = joystick != null ? joystick.GetComponentInParent<Canvas>() : Object.FindObjectOfType<Canvas>();
+            var joystick = Object.FindFirstObjectByType<Joystick>(FindObjectsInactive.Include);
+            var canvas = joystick != null ? joystick.GetComponentInParent<Canvas>() : Object.FindFirstObjectByType<Canvas>();
 
             if (joystick != null)
             {
@@ -224,7 +224,7 @@ namespace Mountains
             }
 
             fader.player = player.transform;
-            fader.vegetationScatter = Object.FindObjectOfType<VegetationScatter>();
+            fader.vegetationScatter = Object.FindFirstObjectByType<VegetationScatter>();
 
             // 새로 추가한 경우 이번 프레임 안에 TreeViewOcclusionFader.Start()가 알아서
             // CollectTrees()를 한 번 불러준다 — 여기서 또 부르면 나무 수백 개를 두 번

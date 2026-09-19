@@ -980,7 +980,7 @@ namespace Mountains
 
             Transform nearest = null;
             float nearestSqr = float.MaxValue;
-            foreach (var probe in FindObjectsOfType<ReflectionProbe>())
+            foreach (var probe in FindObjectsByType<ReflectionProbe>(FindObjectsSortMode.None))
             {
                 if (!probe.isActiveAndEnabled)
                 {
