@@ -18,6 +18,6 @@ MonoBehaviour:
     type: 3}
   dialogColor: {r: 1, g: 1, b: 1, a: 1}
   portraitPrefab: {fileID: 0}
-  portraitZoom: 1.59
+  portraitZoom: 1
   portraitYaw: 180
-  portraitOffset: {x: 0, y: 0.17, z: 0}
+  portraitOffset: {x: 0, y: 0, z: 0}

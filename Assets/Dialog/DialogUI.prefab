@@ -185,7 +185,7 @@ MonoBehaviour:
   canvasGroup: {fileID: 5758446751343570452}
   portraitImage: {fileID: 5227488340095331297}
   portraitRenderImage: {fileID: 8923714510838099046}
-  dialogBackground: {fileID: 0}
+  dialogBackground: {fileID: 8443107614130983219}
   nameText: {fileID: 7083710348827749262}
   bodyText: {fileID: 2744643680050353801}
   defaultDialogColor: {r: 0, g: 0, b: 0, a: 1}

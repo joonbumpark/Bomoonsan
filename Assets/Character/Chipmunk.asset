@@ -13,7 +13,11 @@ MonoBehaviour:
   m_Name: Chipmunk
   m_EditorClassIdentifier: 
   characterName: "\uC18C\uB144"
-  portrait: {fileID: 21300000, guid: 6e8b7250279e7eb46adcd6a9e342334a, type: 3}
+  portrait: {fileID: 0}
   modelPrefab: {fileID: 3692799530917596500, guid: 36342d34c277a9f4ba1241c51ce89f08,
     type: 3}
   dialogColor: {r: 0.5377358, g: 0.5377358, b: 0.5377358, a: 1}
+  portraitPrefab: {fileID: 0}
+  portraitZoom: 1
+  portraitYaw: 180
+  portraitOffset: {x: 0, y: 0, z: 0}
