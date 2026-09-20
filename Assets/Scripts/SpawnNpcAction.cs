@@ -22,7 +22,8 @@ namespace Mountains
             }
 
             Vector3 position = spawnPoint != null ? spawnPoint.position : transform.position;
-            RegisterSpawned(CharacterManager.Instance.CreateNpc(characterData, position));
+            var rotatation = spawnPoint != null ? spawnPoint.rotation : transform.rotation;
+            RegisterSpawned(CharacterManager.Instance.CreateNpc(characterData, position, rotatation));
             onComplete?.Invoke();
         }
     }

@@ -20,5 +20,7 @@ MonoBehaviour:
   - character: {fileID: 11400000, guid: f03f1e5259c5d6a4487774f835ce6ba1, type: 2}
     text: "\uB098\uB97C \uAC00\uAE4C\uC6B4 \uAC15\uBB3C\uC5D0 \uB370\uB824\uAC00\uC918."
   - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
-    text: "\uBC14\uC058\uC9C0\uB9CC, \uC5B4\uB824\uC6B4 \uCC98\uC9C0\uB97C \uBABB
-      \uBCF8 \uCC99 \uD560 \uC218 \uC5C6\uC9C0."
+    text: "\uC5B4\uB824\uC6B4 \uCC98\uC9C0\uB97C \uBABB \uBCF8 \uCC99 \uD560 \uC218
+      \uC5C6\uC9C0."
+  - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
+    text: "\uAC19\uC774\uAC00\uC790!"

@@ -106,7 +106,7 @@ namespace Mountains
                     ? entry.spawnPoint.position
                     : playerSpawnPoint != null ? playerSpawnPoint.position
                     : defaultSpawnPos + Vector3.right * (5f + i * 2f);
-                var npcGo = CharacterManager.Instance.CreateNpc(entry.characterData, spawnPos);
+                var npcGo = CharacterManager.Instance.CreateNpc(entry.characterData, spawnPos, Quaternion.identity);
 
                 var follower = npcGo != null ? npcGo.GetComponent<NpcFollower>() : null;
                 if (follower != null)

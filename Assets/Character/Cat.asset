@@ -16,7 +16,7 @@ MonoBehaviour:
   portrait: {fileID: 0}
   modelPrefab: {fileID: 3692799530917596500, guid: d6d65dae75bbbfb4e9ccdede4a37041b,
     type: 3}
-  dialogColor: {r: 1, g: 1, b: 1, a: 1}
+  dialogColor: {r: 0, g: 0, b: 0, a: 1}
   portraitPrefab: {fileID: 0}
   portraitZoom: 1
   portraitYaw: 180

@@ -39,9 +39,9 @@ namespace Mountains
             return go;
         }
 
-        public GameObject CreateNpc(CharacterData data, Vector3 position)
+        public GameObject CreateNpc(CharacterData data, Vector3 position, Quaternion rotation)
         {
-            return InstantiateCharacter(npcPrefab, data, position, "Npc");
+            return InstantiateCharacter(npcPrefab, data, position, rotation, "Npc");
         }
 
         // 플레이어를 쫓아오는 대신, 플레이어가 detectRadius 안에 들어오면 pathPoints를
@@ -82,6 +82,11 @@ namespace Mountains
 
         GameObject InstantiateCharacter(GameObject prefab, CharacterData data, Vector3 position, string fallbackName)
         {
+            return InstantiateCharacter(prefab, data, position, Quaternion.identity, fallbackName);
+        }
+
+        GameObject InstantiateCharacter(GameObject prefab, CharacterData data, Vector3 position, Quaternion rotation, string fallbackName)
+        {
             if (prefab == null)
             {
                 Debug.LogWarning($"[CharacterManager] {fallbackName} 프리팹이 지정되지 않았습니다.");
@@ -95,7 +100,7 @@ namespace Mountains
             // 에이전트가 NavMesh에 안 붙은 상태로 남는다. 그래서 Instantiate할 때부터
             // 목표 위치를 바로 넣어준다 — 아래 Warp()는 그 위치를 NavMesh 위 정확한
             // 지점으로 한 번 더 스냅하는 역할이다.
-            var go = Instantiate(prefab, position, Quaternion.identity);
+            var go = Instantiate(prefab, position, rotation);
             go.name += data != null && !string.IsNullOrEmpty(data.characterName) ? data.characterName : fallbackName;
 
             if (data != null && data.modelPrefab != null)
