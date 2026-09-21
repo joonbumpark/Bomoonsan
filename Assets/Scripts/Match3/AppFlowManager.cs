@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -47,16 +48,31 @@ namespace Match3
         [SerializeField] private MatchmakingPopup matchmakingPopup;
         [SerializeField] private ResultPopup resultPopup;
 
+        [Header("통신 중 인디케이터 (비워두면 임시 도형을 자동으로 씀)")]
+        [SerializeField] private Sprite networkIndicatorIcon;
+
         private Dictionary<GameKind, IRoundGame> games;
         private GameKind selectedGame = GameKind.Match3;
         private IRoundGame CurrentGame => games[selectedGame];
 
         private NetworkClient network;
+        private NetworkIndicator networkIndicator;
 
         private bool isVersusMatch;
         private string currentMatchId;
         private string currentOpponentName;
         private Action pendingOnOpenAction;
+
+        // ----------------------------------------------------------------
+        // 리더보드 조회 재시도
+        // ----------------------------------------------------------------
+        private const int LeaderboardRetryAttempts = 3;
+        private const float LeaderboardRetryDelaySeconds = 2f;
+        private const float LeaderboardAttemptTimeoutSeconds = 6f;
+        private const float ConnectAttemptTimeoutSeconds = 4f;
+
+        private Coroutine leaderboardRetryRoutine;
+        private bool leaderboardResponsePending;
 
         private void Awake()
         {
@@ -84,6 +100,8 @@ namespace Match3
             network.OnMatchResult += HandleMatchResult;
             network.OnLeaderboard += HandleLeaderboard;
             network.OnError += HandleNetworkError;
+
+            networkIndicator = NetworkIndicator.Create(appCanvasRoot.transform, networkIndicatorIcon);
 
             WireButtons();
             ShowGameSelect();
@@ -304,13 +322,10 @@ namespace Match3
                 {
                     // 대전과 동일한 서버 리더보드에, 매치 없이 바로 기록한다 (같은
                     // 닉네임이면 서버가 더 높은 점수만 남긴다). 목록은 기록 직후 다시
-                    // 요청해서 HandleLeaderboard가 채운다.
+                    // 요청해서(실패하면 재시도) HandleLeaderboard가 채운다.
                     string game = selectedGame.ToServerId();
-                    EnsureConnectedThen(() =>
-                    {
-                        network.SubmitSoloScore(name, game, finalScore);
-                        network.RequestLeaderboard(game);
-                    });
+                    EnsureConnectedThen(() => network.SubmitSoloScore(name, game, finalScore));
+                    RequestLeaderboardWithRetry(game);
                 }
                 else
                 {
@@ -328,11 +343,81 @@ namespace Match3
             // 이미지로 표시한다. 리더보드 목록은 다시 요청해서 HandleLeaderboard가 채운다.
             ShowResult(yourScore);
             resultPopup.SetMatchOutcome(result);
-            network.RequestLeaderboard(selectedGame.ToServerId());
+            RequestLeaderboardWithRetry(selectedGame.ToServerId());
+        }
+
+        /// <summary>리더보드 조회를 요청하고, 응답이 안 오면(연결 실패/타임아웃) 텀을 두고
+        /// 최대 LeaderboardRetryAttempts번까지 재시도한다. 진행 중에는 networkIndicator를
+        /// 띄운다. 새 요청이 들어오면 이전 재시도는 취소하고 새로 시작한다.</summary>
+        private void RequestLeaderboardWithRetry(string game)
+        {
+            if (leaderboardRetryRoutine != null)
+                StopCoroutine(leaderboardRetryRoutine);
+            leaderboardRetryRoutine = StartCoroutine(LeaderboardRetryRoutine(game));
+        }
+
+        private IEnumerator LeaderboardRetryRoutine(string game)
+        {
+            leaderboardResponsePending = true;
+            networkIndicator.Show();
+
+            for (int attempt = 1; attempt <= LeaderboardRetryAttempts; attempt++)
+            {
+                if (!network.IsConnected)
+                    yield return StartCoroutine(ConnectIfNeeded());
+
+                if (network.IsConnected)
+                {
+                    network.RequestLeaderboard(game);
+
+                    float waited = 0f;
+                    while (leaderboardResponsePending && waited < LeaderboardAttemptTimeoutSeconds)
+                    {
+                        waited += Time.deltaTime;
+                        yield return null;
+                    }
+                }
+
+                if (!leaderboardResponsePending)
+                    break;
+
+                if (attempt < LeaderboardRetryAttempts)
+                    yield return new WaitForSeconds(LeaderboardRetryDelaySeconds);
+            }
+
+            networkIndicator.Hide();
+            leaderboardRetryRoutine = null;
+        }
+
+        /// <summary>연결돼 있지 않으면 연결을 시도하고, 열리거나(성공) 오류가 날 때까지(실패)
+        /// 최대 ConnectAttemptTimeoutSeconds만큼만 기다린다 - EnsureConnectedThen과 달리
+        /// 코루틴이라 재시도 루프 안에서 순서대로 기다렸다 다음 단계로 넘어갈 수 있다.</summary>
+        private IEnumerator ConnectIfNeeded()
+        {
+            bool done = false;
+            void OnOpenOnce() => done = true;
+            void OnErrorOnce(string _) => done = true;
+
+            network.OnOpen += OnOpenOnce;
+            network.OnError += OnErrorOnce;
+
+            network.Connect();
+
+            float waited = 0f;
+            while (!done && waited < ConnectAttemptTimeoutSeconds)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+
+            network.OnOpen -= OnOpenOnce;
+            network.OnError -= OnErrorOnce;
         }
 
         private void HandleLeaderboard(List<LeaderboardEntry> entries)
         {
+            leaderboardResponsePending = false;
+
             // 결과 화면이 떠 있을 때 도착한 응답만 반영한다 - 게임을 바꾼 뒤에 뒤늦게
             // 도착한 응답은 무시한다 (서버 응답에 game 구분이 없어 이 정도로 방어한다).
             if (!resultPopup.gameObject.activeSelf)

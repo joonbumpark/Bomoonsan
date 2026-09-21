@@ -138,8 +138,11 @@ namespace Match3
         /// - 일자가 아닌 모양(가로 런과 세로 런이 하나라도 겹쳐서 생기는 코너/T/십자 등 어떤 모양이든):
         ///   3x3을 폭발시키는 아이템(AreaBomb). 겹치려면 두 런 모두 길이 3 이상이어야 하므로
         ///   전체 칸 수는 항상 5개 이상이 된다.
+        ///
+        /// preferredSpawnCell을 주면(스왑으로 매치를 만들었을 때, 플레이어가 드래그해서 옮긴
+        /// 칸) 그 칸이 속한 그룹은 기본 위치(줄 가운데/교차점) 대신 그 칸에 아이템을 만든다.
         /// </summary>
-        public List<MatchGroup> FindMatchGroups()
+        public List<MatchGroup> FindMatchGroups(Vector2Int? preferredSpawnCell = null)
         {
             var hRuns = new List<(int row, int start, int end)>();
             var vRuns = new List<(int col, int start, int end)>();
@@ -309,6 +312,11 @@ namespace Match3
                     spawnCell = new Vector2Int(run.col, (run.start + run.end) / 2);
                     spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: false);
                 }
+
+                // 플레이어가 드래그해서 옮긴 칸이 이 그룹 안에 있으면, 기본 위치 대신 그
+                // 칸에 아이템을 만든다 - "내가 완성한 자리"에 아이템이 나오게 하기 위함.
+                if (spawnItem != ItemType.None && preferredSpawnCell.HasValue && cells.Contains(preferredSpawnCell.Value))
+                    spawnCell = preferredSpawnCell.Value;
 
                 groups.Add(new MatchGroup(cells, colorType, spawnItem, spawnCell));
             }

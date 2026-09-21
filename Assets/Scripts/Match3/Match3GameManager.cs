@@ -324,11 +324,13 @@ namespace Match3
                     cellsToClear.UnionWith(board.ActivateItem(new Vector2Int(tileB.Col, tileB.Row), colorOverride));
                 }
 
+                cellsToClear = ExpandItemChain(cellsToClear);
                 yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
             }
             else
             {
-                yield return StartCoroutine(ResolveMatches());
+                // 플레이어가 드래그해서 옮긴 타일이 도착한 칸(b)에 아이템이 생기게 한다.
+                yield return StartCoroutine(ResolveMatches(b));
             }
 
             if (roundActive && !board.HasAnyValidMove())
@@ -346,6 +348,7 @@ namespace Match3
             inputLocked = true;
 
             var cellsToClear = board.ActivateItem(new Vector2Int(tile.Col, tile.Row));
+            cellsToClear = ExpandItemChain(cellsToClear);
             yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
 
             if (roundActive && !board.HasAnyValidMove())
@@ -389,10 +392,46 @@ namespace Match3
             b.RectTransform.anchoredPosition = aStart;
         }
 
-        /// <summary>스왑으로 만들어진 첫 매치를 모양별로 처리한다(아이템 생성 포함한 뒤 연쇄 진행).</summary>
-        private IEnumerator ResolveMatches()
+        /// <summary>
+        /// 아이템 발동으로 지워질 칸들(cellsToClear) 안에 또 다른 아이템 블록이 걸려 있으면
+        /// 그 아이템도 함께 발동시켜, 그 효과 범위까지 지울 칸에 더한다. 그렇게 새로 걸린
+        /// 칸 중에 또 아이템이 있으면 계속 이어서(연쇄) 처리하고, 더 이상 새로 걸리는
+        /// 아이템이 없을 때 멈춘다.
+        /// </summary>
+        private HashSet<Vector2Int> ExpandItemChain(HashSet<Vector2Int> cellsToClear)
         {
-            var groups = board.FindMatchGroups();
+            var processed = new HashSet<Vector2Int>();
+            var pending = new Queue<Vector2Int>(cellsToClear);
+
+            while (pending.Count > 0)
+            {
+                var cell = pending.Dequeue();
+                if (!processed.Add(cell))
+                    continue;
+
+                if (board.GetItem(cell.x, cell.y) == ItemType.None)
+                    continue;
+
+                foreach (var chained in board.ActivateItem(cell))
+                {
+                    if (cellsToClear.Add(chained))
+                        pending.Enqueue(chained);
+                }
+            }
+
+            return cellsToClear;
+        }
+
+        /// <summary>
+        /// 스왑으로 만들어진 첫 매치를 모양별로 처리한다(아이템 생성 포함한 뒤 연쇄 진행).
+        /// preferredSpawnCell은 플레이어가 드래그해서 옮긴 칸 - 그 칸이 매치에 포함돼
+        /// 있으면 아이템이 기본 위치 대신 그 자리에 생긴다(Match3Board.FindMatchGroups 참고).
+        /// 중력으로 떨어지며 생기는 이후 연쇄 매치는 드래그 위치가 없으니 RunCascade 안에서
+        /// 따로 기본 위치로 계산한다.
+        /// </summary>
+        private IEnumerator ResolveMatches(Vector2Int? preferredSpawnCell)
+        {
+            var groups = board.FindMatchGroups(preferredSpawnCell);
             var cellsToClear = ApplyMatchGroupsAndGetClearSet(groups);
             yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
         }
@@ -467,7 +506,11 @@ namespace Match3
 
         private IEnumerator AnimateClear(IEnumerable<Vector2Int> cells)
         {
-            var tiles = cells.Select(p => views[p.x, p.y]).Where(v => v != null).ToList();
+            var cellList = cells as ICollection<Vector2Int> ?? cells.ToList();
+            foreach (var cell in cellList)
+                SpawnClearEffect(cell);
+
+            var tiles = cellList.Select(p => views[p.x, p.y]).Where(v => v != null).ToList();
             if (tiles.Count == 0)
                 yield break;
 
@@ -479,6 +522,36 @@ namespace Match3
                 foreach (var tile in tiles)
                     tile.RectTransform.localScale = Vector3.one * scale;
                 yield return null;
+            }
+        }
+
+        /// <summary>칸 하나가 지워지기 직전에 그 칸에 맞는 이펙트를 띄운다. 아이템이 붙어
+        /// 있던 칸(원래 발동된 아이템이든 연쇄로 걸려든 아이템이든)은 그 아이템 종류에 맞는
+        /// 이펙트를, 그냥 매치로 지워지는 칸은 공통 팝 이펙트를 낸다. board.Clear()가 items를
+        /// 비우기 전에 호출돼야 하므로 AnimateClear 맨 앞에서 호출한다.</summary>
+        private void SpawnClearEffect(Vector2Int cell)
+        {
+            Vector2 position = CellToLocalPos(cell.x, cell.y);
+            int colorType = Mathf.Clamp(board.GetType(cell.x, cell.y), 0, Palette.Length - 1);
+            Color color = Palette[colorType];
+
+            switch (board.GetItem(cell.x, cell.y))
+            {
+                case ItemType.LineHorizontal:
+                    Match3EffectSpawner.SpawnLineHorizontal(this, boardRoot, position, color);
+                    break;
+                case ItemType.LineVertical:
+                    Match3EffectSpawner.SpawnLineVertical(this, boardRoot, position, color);
+                    break;
+                case ItemType.AreaBomb:
+                    Match3EffectSpawner.SpawnAreaBomb(this, boardRoot, position, color);
+                    break;
+                case ItemType.ColorBomb:
+                    Match3EffectSpawner.SpawnColorBomb(this, boardRoot, position);
+                    break;
+                default:
+                    Match3EffectSpawner.SpawnPop(this, boardRoot, position, color);
+                    break;
             }
         }
 

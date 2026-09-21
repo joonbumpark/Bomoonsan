@@ -278,6 +278,9 @@ namespace Match3
             hintText.text = $"완성! +{bonus}점";
             UpdateHud();
 
+            Match3EffectSpawner.SpawnCelebration(this, boardRoot, Vector2.zero);
+            Match3EffectSpawner.SpawnPopupText(this, boardRoot, Vector2.zero, "완성!", new Color(1f, 0.85f, 0.3f), 120f);
+
             yield return new WaitForSeconds(solvedCelebrationSeconds);
 
             if (roundActive)

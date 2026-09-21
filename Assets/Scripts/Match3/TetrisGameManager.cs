@@ -66,6 +66,19 @@ namespace Match3
         private static readonly Color EmptyCellColor = new Color(1f, 1f, 1f, 0.06f);
         private static readonly int[] LineClearScoreTable = { 0, 100, 300, 500, 800 };
 
+        // PieceArtNames와 같은 순서(I,O,T,S,Z,J,L) - 줄삭제 파티클 색으로만 쓰고 아트에는
+        // 영향 없다. 테트리스 가이드라인의 표준 블록 색을 그대로 따랐다.
+        private static readonly Color[] PieceColors =
+        {
+            new Color(0.20f, 0.80f, 0.85f), // I - 시안
+            new Color(0.95f, 0.87f, 0.20f), // O - 노랑
+            new Color(0.61f, 0.35f, 0.71f), // T - 보라
+            new Color(0.30f, 0.69f, 0.31f), // S - 초록
+            new Color(0.91f, 0.30f, 0.24f), // Z - 빨강
+            new Color(0.20f, 0.60f, 0.86f), // J - 파랑
+            new Color(0.95f, 0.61f, 0.07f), // L - 주황
+        };
+
         public event Action<int> RoundEnded;
         public int CurrentScore => score;
 
@@ -379,6 +392,8 @@ namespace Match3
             if (fullRows.Count == 0)
                 return;
 
+            SpawnLineClearEffects(fullRows);
+
             foreach (int r in fullRows)
             {
                 for (int rr = r; rr > 0; rr--)
@@ -396,6 +411,47 @@ namespace Match3
             totalLinesCleared += fullRows.Count;
             level = totalLinesCleared / linesPerLevel;
             gravityInterval = Mathf.Max(minGravitySeconds, initialGravitySeconds - level * gravityStepPerLevel);
+        }
+
+        /// <summary>
+        /// 줄이 지워지기 직전(아직 board가 내려앉기 전)에 그 줄들의 칸마다 색 파티클을
+        /// 띄우고, 몇 줄이 한 번에 지워졌는지(1~4)에 따라 점점 더 화려한 문구를 하나
+        /// 띄운다 - 1줄 "Nice!"부터 4줄(테트리스) "TETRIS!!"까지.
+        /// </summary>
+        private void SpawnLineClearEffects(List<int> fullRows)
+        {
+            float boardW = columns * cellSize + (columns - 1) * cellSpacing;
+            float boardH = rows * cellSize + (rows - 1) * cellSpacing;
+
+            foreach (int r in fullRows)
+            {
+                for (int c = 0; c < columns; c++)
+                {
+                    int val = board[r, c];
+                    Color color = val > 0 ? PieceColors[val - 1] : Color.white;
+                    Match3EffectSpawner.SpawnPop(this, boardRoot, CellToLocalPos(r, c, boardW, boardH), color);
+                }
+            }
+
+            float avgRow = 0f;
+            foreach (int r in fullRows)
+                avgRow += r;
+            avgRow /= fullRows.Count;
+            Vector2 textPos = new Vector2(0f, CellToLocalPos(Mathf.RoundToInt(avgRow), 0, boardW, boardH).y);
+
+            var (text, textColor, fontSize) = LineClearTextFor(fullRows.Count);
+            Match3EffectSpawner.SpawnPopupText(this, boardRoot, textPos, text, textColor, fontSize);
+        }
+
+        private static (string text, Color color, float fontSize) LineClearTextFor(int lineCount)
+        {
+            switch (Mathf.Clamp(lineCount, 1, 4))
+            {
+                case 1: return ("Nice!", Color.white, 64f);
+                case 2: return ("Great!", new Color(0.95f, 0.87f, 0.20f), 76f);
+                case 3: return ("Awesome!", new Color(0.95f, 0.61f, 0.07f), 88f);
+                default: return ("TETRIS!!", new Color(0.91f, 0.30f, 0.24f), 104f);
+            }
         }
 
         // ----------------------------------------------------------------
