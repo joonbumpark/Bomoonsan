@@ -22,7 +22,7 @@ namespace Match3
     /// </summary>
     public class NetworkClient : MonoBehaviour
     {
-        public string serverUrl = "wss://bomoonsan-match3-444961358480.asia-northeast3.run.app";
+        public string serverUrl = "wss://bomoonsan-match3-927968108123.asia-northeast3.run.app";
 
         public event Action OnOpen;
         public event Action OnQueued;

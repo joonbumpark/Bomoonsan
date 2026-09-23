@@ -37,7 +37,7 @@ namespace Match3
     public class AppFlowManager : MonoBehaviour
     {
         [Header("대전 서버")]
-        public string serverUrl = "wss://bomoonsan-match3-444961358480.asia-northeast3.run.app";
+        public string serverUrl = "wss://bomoonsan-match3-927968108123.asia-northeast3.run.app";
 
         private const string NicknamePrefKey = "match3_nickname";
 

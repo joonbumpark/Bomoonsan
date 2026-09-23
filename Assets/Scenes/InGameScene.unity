@@ -1353,7 +1353,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ae0d10d49efb46448366c35aee690f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serverUrl: wss://bomoonsan-match3-444961358480.asia-northeast3.run.app
+  serverUrl: wss://bomoonsan-match3-927968108123.asia-northeast3.run.app
   appCanvasRoot: {fileID: 775429922}
   gameSelectPopup: {fileID: 164389386}
   playModePopup: {fileID: 1016416920}
