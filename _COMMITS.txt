@@ -1,0 +1,7 @@
+4e2b577 ~ HEAD (509e0ad)
+
+509e0ad 타이틀/프롤로그 씬 구성과 캐릭터·태그 설정 반영
+bd014fa NPC 키 저장소와 프롤로그 데이터 에셋 추가
+3024bbe 타이틀 프롤로그 연출과 타이틀 캔버스 생성 메뉴 추가
+7373244 MoveThenRotatePlayerAction을 NavMesh/트윈 두 액션으로 분리
+4e2b577 TriggerAction을 UniTask 기반 [SerializeReference]로 전환

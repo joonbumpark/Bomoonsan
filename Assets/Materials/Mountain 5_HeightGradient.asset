@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!28 &2800000
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mountain 5_HeightGradient
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 3
+  m_Width: 1
+  m_Height: 64
+  m_CompleteImageSize: 256
+  m_MipsStripped: 0
+  m_TextureFormat: 4
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 0
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 1
+    m_WrapV: 1
+    m_WrapW: 1
+  m_LightmapFormat: 0
+  m_ColorSpace: 1
+  m_PlatformBlob: 
+  image data: 256
+  _typelessdata: 67d446ff66d345ff65d344ff64d243ff63d142ff62d041ff61d040ff61cf3fff60ce3eff5fcd3dff5ecd3cff5dcc3bff5ccb3bff5bcb3aff5aca39ff59c938ff58c837ff57c836ff56c735ff56c634ff55c533ff54c532ff53c431ff52c330ff51c32fff50c22eff4fc12dff4dbf2bff4bbd29ff49bb27ff48b926ff46b724ff44b522ff42b320ff40b11eff3eaf1cff3cad1aff3aab18ff38aa16ff36a814ff34a612ff32a410ff31a20fff32a10dff3fa90cff4db00bff5ab70aff68bf09ff75c608ff83cd07ff90d506ff9edc05ffabe304ffb9eb03ffc6f202ffd1f601ffd6f301ffdbf101ffe0ee01ffe5eb01ffeae801ffefe601fff4e301fff7e101ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
