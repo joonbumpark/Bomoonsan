@@ -1,3 +1,4 @@
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -47,18 +48,20 @@ namespace Mountains
 
         // 버튼 클릭은 EventSystem이 없으면 아예 들어오지 않는다. 조이스틱이 있는 씬이면
         // 이미 있지만, 빈 테스트 씬에서도 팝업이 동작하게 보장해둔다.
-        static void EnsureEventSystem()
+        // 새로 만들었으면 그 오브젝트를, 이미 있었으면 null을 돌려준다 — 에디터 도구가
+        // 방금 만든 것만 Undo에 등록할 수 있게 한다.
+        public static GameObject EnsureEventSystem()
         {
             if (EventSystem.current != null)
             {
-                return;
+                return null;
             }
             if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) != null)
             {
-                return;
+                return null;
             }
 
-            new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            return new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
         }
 
         // 코드로 만든 TMP 텍스트는 TMP 기본 폰트(LiberationSans)를 쓰는데 한글 글리프가
@@ -75,8 +78,35 @@ namespace Mountains
                 return dialog.bodyText.font;
             }
 
+#if UNITY_EDITOR
+            // 대화창이 없는 씬(타이틀)이나 프리팹을 굽는 상황에서는 빌릴 대상이 없다 —
+            // 에디터에서는 프로젝트를 직접 뒤져 한글 폰트를 찾을 수 있다.
+            var fromProject = FindProjectFont();
+            if (fromProject != null)
+            {
+                return fromProject;
+            }
+#endif
+
             return TMP_Settings.defaultFontAsset;
         }
+
+#if UNITY_EDITOR
+        static TMP_FontAsset FindProjectFont()
+        {
+            var paths = UnityEditor.AssetDatabase.FindAssets("t:TMP_FontAsset")
+                .Select(UnityEditor.AssetDatabase.GUIDToAssetPath)
+                .ToArray();
+
+            // LiberationSans(TMP 기본)에는 한글 글리프가 없다 — 그 외 폰트를 우선한다.
+            string chosen = paths.FirstOrDefault(p => p.Contains("Noto"))
+                ?? paths.FirstOrDefault(p => !p.Contains("LiberationSans"));
+
+            return chosen != null
+                ? UnityEditor.AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(chosen)
+                : null;
+        }
+#endif
 
         // 런타임 UI를 찾거나 만드는 순서: 이미 잡아둔 인스턴스 -> 씬에 배치된 것 ->
         // 카탈로그의 프리팹 -> 코드 생성. 팝업과 토스트가 같은 순서를 각자 구현하고

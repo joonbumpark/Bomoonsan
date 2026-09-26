@@ -20,6 +20,11 @@ namespace Mountains
         [Tooltip("이 캐릭터가 말할 때 대화창 배경/테두리에 적용되는 색상.")]
         public Color dialogColor = Color.black;
 
+        [Header("이동")]
+        [Tooltip("이 캐릭터의 NavMeshAgent 이동 성능. 비워두면(0) 프리팹 값을 그대로 쓴다. " +
+            "캐릭터마다 걷는 속도가 다른 경우 여기에 두면 어느 경로로 스폰하든 같은 값이 된다.")]
+        public NavMeshAgentSettings agentSettings = new NavMeshAgentSettings();
+
         [Header("Portrait")]
         [Tooltip("초상화 전용 프리팹. 비워두면 modelPrefab을 그대로 쓴다 — 상반신만 따로 " +
             "만들었거나 초상화용 포즈/의상이 다를 때만 채운다.")]

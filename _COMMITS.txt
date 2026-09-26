@@ -1,15 +1,7 @@
-1844c75 ~ HEAD (1ad6ebc)
+4e2b577 ~ HEAD (509e0ad)
 
-1ad6ebc 빌드 씬 목록에 TitleScene 추가하고 시작 씬으로 지정
-7826596 옵션 팝업에 다시 시작/타이틀 이동 추가
-41022ad no message
-bd88735 빌드 씬 목록에 Mountain 5 추가
-b62b166 Unity 6 업그레이드 후속 파일 반영
-e8458dc 범용 메시지 팝업/토스트 UI 시스템 추가
-bf906fa 디졸브 셰이더 추가
-d8e9d42 Unity 6에서 deprecated된 FindObjectOfType 정리
-0cafe9f 머티리얼 프로퍼티 트윈 액션 추가
-361fade Unity 6000.0.82f1로 업그레이드
-d108be4 물튀김 스크립트를 Scripts로 옮기고 FxUtility로 정리
-6bae011 DOTween 범용 트윈 액션과 보물상자 금화 연출 추가
-1844c75 NPC 스폰/제거 액션과 등장·소멸 연출 추가
+509e0ad 타이틀/프롤로그 씬 구성과 캐릭터·태그 설정 반영
+bd014fa NPC 키 저장소와 프롤로그 데이터 에셋 추가
+3024bbe 타이틀 프롤로그 연출과 타이틀 캔버스 생성 메뉴 추가
+7373244 MoveThenRotatePlayerAction을 NavMesh/트윈 두 액션으로 분리
+4e2b577 TriggerAction을 UniTask 기반 [SerializeReference]로 전환

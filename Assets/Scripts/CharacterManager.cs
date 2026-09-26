@@ -38,10 +38,14 @@ namespace Mountains
 
             return go;
         }
-
         public GameObject CreateNpc(CharacterData data, Vector3 position, Quaternion rotation)
         {
             return InstantiateCharacter(npcPrefab, data, position, rotation, "Npc");
+        }
+        
+        public GameObject CreateNpc(CharacterData data, Vector3 position)
+        {
+            return InstantiateCharacter(npcPrefab, data, position, "Npc");
         }
 
         // 플레이어를 쫓아오는 대신, 플레이어가 detectRadius 안에 들어오면 pathPoints를
@@ -100,7 +104,7 @@ namespace Mountains
             // 에이전트가 NavMesh에 안 붙은 상태로 남는다. 그래서 Instantiate할 때부터
             // 목표 위치를 바로 넣어준다 — 아래 Warp()는 그 위치를 NavMesh 위 정확한
             // 지점으로 한 번 더 스냅하는 역할이다.
-            var go = Instantiate(prefab, position, rotation);
+            var go = Instantiate(prefab, position, Quaternion.identity);
             go.name += data != null && !string.IsNullOrEmpty(data.characterName) ? data.characterName : fallbackName;
 
             if (data != null && data.modelPrefab != null)
@@ -116,11 +120,22 @@ namespace Mountains
             // Warp는 NavMesh 위 가장 가까운 지점으로 안전하게 순간이동시켜준다. NavMesh가
             // 아직 없는 씬이면 실패할 수 있으니, 그때는 일단 좌표만 맞춰두고 안내한다.
             var agent = go.GetComponent<NavMeshAgent>();
-            if (agent != null && !agent.Warp(position))
+            if (agent != null)
             {
-                go.transform.position = position;
-                Debug.LogWarning($"[CharacterManager] {go.name}: NavMesh가 아직 없어 NavMesh 위로 정확히 놓지 못했습니다. " +
-                    "Mountains > Bake NavMesh를 실행한 뒤 확인하세요.");
+                // 이동 성능은 캐릭터의 성질이라 CharacterData가 들고 있다 — 스폰 경로가
+                // 여럿이므로(테스트 스폰, 트리거 액션, 팔로워) 여기 한 곳에서 적용해야
+                // 어디서 만들든 같은 값이 나온다. 스폰 액션이 더 덮어쓸 수 있다.
+                if (data != null)
+                {
+                    data.agentSettings.Apply(agent);
+                }
+
+                if (!agent.Warp(position))
+                {
+                    go.transform.position = position;
+                    Debug.LogWarning($"[CharacterManager] {go.name}: NavMesh가 아직 없어 NavMesh 위로 정확히 놓지 못했습니다. " +
+                        "Mountains > Bake NavMesh를 실행한 뒤 확인하세요.");
+                }
             }
 
             return go;
