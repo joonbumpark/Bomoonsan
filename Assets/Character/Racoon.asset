@@ -12,11 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f30b1847c4cc4c14fad32f98752622d8, type: 3}
   m_Name: Racoon
   m_EditorClassIdentifier: 
-  characterName: "\uB77C\uCFE4"
+  characterName: "\uCC9C\uB465"
   portrait: {fileID: 0}
   modelPrefab: {fileID: 3692799530917596500, guid: 802a50e2edfc7be488e79af6d306230c,
     type: 3}
   dialogColor: {r: 0, g: 0, b: 0, a: 1}
+  agentSettings:
+    speed: 0
+    angularSpeed: 0
+    acceleration: 0
   portraitPrefab: {fileID: 0}
   portraitZoom: 2.72
   portraitYaw: 180

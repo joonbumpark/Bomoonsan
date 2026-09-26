@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f30b1847c4cc4c14fad32f98752622d8, type: 3}
   m_Name: Boy
   m_EditorClassIdentifier: 
-  characterName: "\uC18C\uB144"
+  characterName: "\uBC14\uB78C\uC774"
   portrait: {fileID: 0}
   modelPrefab: {fileID: 823194113509360861, guid: ee0f04f508760e9449b60f3fb82c047d,
     type: 3}

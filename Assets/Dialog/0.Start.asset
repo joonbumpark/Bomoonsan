@@ -14,12 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lines:
   - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
-    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC544\uBCF4\uC790."
-  - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
-    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC544\uBCF4\uC790.2"
-  - character: {fileID: 11400000, guid: 8c4aad2445426024f8d5d7441796d179, type: 2}
-    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC544\uBCF4\uC790."
-  - character: {fileID: 11400000, guid: c32a05db6b3983d4cb83171675cb7e33, type: 2}
-    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC544\uBCF4\uC790."
-  - character: {fileID: 11400000, guid: de4d30cb1324d284fa8780503eb6dca9, type: 2}
-    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC544\uBCF4\uC790."
+    text: "\uC5C4\uB9C8\uB97C \uCC3E\uC73C\uB7EC \uAC00\uC790"

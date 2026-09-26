@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f30b1847c4cc4c14fad32f98752622d8, type: 3}
   m_Name: Chipmunk
   m_EditorClassIdentifier: 
-  characterName: "\uC18C\uB144"
+  characterName: "\uB2E4\uB78C\uC774"
   portrait: {fileID: 0}
   modelPrefab: {fileID: 3692799530917596500, guid: 36342d34c277a9f4ba1241c51ce89f08,
     type: 3}

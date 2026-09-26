@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f30b1847c4cc4c14fad32f98752622d8, type: 3}
   m_Name: Cat
   m_EditorClassIdentifier: 
-  characterName: Cat
+  characterName: "\uB8E8"
   portrait: {fileID: 0}
   modelPrefab: {fileID: 3692799530917596500, guid: d6d65dae75bbbfb4e9ccdede4a37041b,
     type: 3}
