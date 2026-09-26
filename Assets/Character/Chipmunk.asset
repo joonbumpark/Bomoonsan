@@ -17,7 +17,11 @@ MonoBehaviour:
   modelPrefab: {fileID: 3692799530917596500, guid: 36342d34c277a9f4ba1241c51ce89f08,
     type: 3}
   dialogColor: {r: 0, g: 0, b: 0, a: 1}
+  agentSettings:
+    speed: 0
+    angularSpeed: 0
+    acceleration: 0
   portraitPrefab: {fileID: 0}
-  portraitZoom: 1
+  portraitZoom: 1.76
   portraitYaw: 180
-  portraitOffset: {x: 0, y: 0, z: 0}
+  portraitOffset: {x: -0.17, y: 0.2, z: 0}

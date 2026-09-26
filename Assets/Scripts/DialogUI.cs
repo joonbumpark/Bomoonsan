@@ -87,7 +87,8 @@ namespace Mountains
             UpdatePortrait(character);
             if (dialogBackground != null)
             {
-                dialogBackground.color = character != null ? character.dialogColor : defaultDialogColor;
+                //dialogBackground.color = character != null ? character.dialogColor : defaultDialogColor;
+                dialogBackground.color = defaultDialogColor;
             }
 
             if (_typingRoutine != null)

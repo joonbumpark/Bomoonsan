@@ -22,6 +22,6 @@ MonoBehaviour:
     angularSpeed: 0
     acceleration: 0
   portraitPrefab: {fileID: 0}
-  portraitZoom: 1
+  portraitZoom: 1.79
   portraitYaw: 180
-  portraitOffset: {x: 0, y: 0, z: 0}
+  portraitOffset: {x: 0, y: 0.25, z: 0}

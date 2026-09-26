@@ -29,7 +29,8 @@ namespace Mountains
 
             [Tooltip("예전 방식(자식 오브젝트에 붙인 컴포넌트)으로 만든 액션들. 마이그레이션 " +
                 "메뉴를 돌리면 위 목록으로 옮겨진다. 위 목록이 비어 있을 때만 실행된다.")]
-            public LegacyTriggerAction[] actions = new LegacyTriggerAction[0];
+
+            [HideInInspector]public LegacyTriggerAction[] actions = new LegacyTriggerAction[0];
 
             public bool HasNewActions
             {

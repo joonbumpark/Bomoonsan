@@ -166,7 +166,7 @@ CanvasGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2162283165577647757}
   m_Enabled: 1
-  m_Alpha: 0
+  m_Alpha: 1
   m_Interactable: 0
   m_BlocksRaycasts: 0
   m_IgnoreParentGroups: 0
@@ -188,7 +188,7 @@ MonoBehaviour:
   dialogBackground: {fileID: 8443107614130983219}
   nameText: {fileID: 7083710348827749262}
   bodyText: {fileID: 2744643680050353801}
-  defaultDialogColor: {r: 0, g: 0, b: 0, a: 1}
+  defaultDialogColor: {r: 0, g: 0, b: 0, a: 0.5882353}
   charsPerSecond: 30
   debugTestData: {fileID: 0}
 --- !u!1 &4103307506112334243
