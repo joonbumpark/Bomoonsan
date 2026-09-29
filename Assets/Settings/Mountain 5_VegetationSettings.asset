@@ -20,7 +20,7 @@ MonoBehaviour:
     - {fileID: 3036827482424969206, guid: 3ade7fcf53c8246418eb3c493d6d2178, type: 3}
     - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
     - {fileID: 6739804228592001243, guid: 6cdd667aa0034cd4dadc8d58a65fb098, type: 3}
-    count: 90000
+    count: 60000
     minHeight: -0.25
     maxHeight: 0.55
     minSlope: 0
@@ -38,7 +38,7 @@ MonoBehaviour:
     clusterScale: 45
     clusterSeed: 1
     alignToNormal: 0
-    uniformScaleRange: {x: 0.7, y: 1.5}
+    uniformScaleRange: {x: 0.9, y: 1.5}
     heightScaleVariation: 0.2
     colorVariation: 0.35
     colorVariantCount: 4
@@ -202,7 +202,7 @@ MonoBehaviour:
     enabled: 1
     prefabs:
     - {fileID: 6117071349010126079, guid: d250af4848f51154f9a2bf6a85b60ac2, type: 3}
-    count: 130
+    count: 100
     minHeight: 0.4
     maxHeight: 0.78
     minSlope: 0
@@ -334,7 +334,7 @@ MonoBehaviour:
     - {fileID: 6713330071496650646, guid: 835c8c368f92f914e99407c1761b06bb, type: 3}
     - {fileID: 7349553109244023792, guid: 08e7a84c117f4a14b8448392e6b4e4cb, type: 3}
     - {fileID: 4315449229577056866, guid: e05037177e97a114b91b679dfe9c2940, type: 3}
-    count: 110
+    count: 80
     minHeight: 0
     maxHeight: 0.5
     minSlope: 0
