@@ -120,7 +120,8 @@ namespace Mountains
         public ScatterGroup[] groups => settings != null ? settings.groups : System.Array.Empty<ScatterGroup>();
         public int seed => settings != null ? settings.seed : 0;
         public float densityMultiplier => settings != null ? settings.densityMultiplier : 1f;
-        public float waterSurfaceMargin => settings != null ? settings.waterSurfaceMargin : 0.3f;
+        //public float waterSurfaceMargin => settings != null ? settings.waterSurfaceMargin : 0.3f;
+        public float waterSurfaceMargin => 0.3f;
 
         Transform _container;
 

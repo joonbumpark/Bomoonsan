@@ -19,6 +19,7 @@ namespace Mountains
         [Min(0f)] public float angularSpeed;
         [Tooltip("0이면 프리팹 값을 그대로 둔다.")]
         [Min(0f)] public float acceleration;
+        public Vector3 followOffset;
 
         public bool HasAnyOverride => speed > 0f || angularSpeed > 0f || acceleration > 0f;
 
@@ -45,12 +46,24 @@ namespace Mountains
 
         public void Apply(GameObject character)
         {
+            Apply(character.GetComponent<NpcFollower>());
+
             if (character == null || !HasAnyOverride)
             {
                 return;
             }
 
             Apply(character.GetComponent<NavMeshAgent>());
+        }
+
+        public void Apply(NpcFollower npcFollower)
+        {
+            if (npcFollower == null)
+            {
+                return;
+            }
+
+            npcFollower.followOffset = followOffset;
         }
     }
 }

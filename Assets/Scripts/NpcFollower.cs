@@ -114,7 +114,7 @@ namespace Mountains
             switch (_state)
             {
                 case State.Waiting:
-                    if (HorizontalDistance(transform.position, player.position) <= followRadius)
+                    if (HorizontalDistance(transform.position, player.position) >= followRadius)
                     {
                         _state = State.Idle;
                     }

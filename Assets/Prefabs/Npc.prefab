@@ -96,9 +96,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 0}
   followOffset: {x: 0, y: 0, z: 0}
-  followRadius: 10
-  stopFollowRadius: 14
+  followRadius: 6
+  followStartDistance: 3
+  arriveDistance: 0.8
   updateInterval: 0.3
+  catchUpDistance: 6
+  maxSpeedMultiplier: 1.6
 --- !u!54 &5490958301733074501
 Rigidbody:
   m_ObjectHideFlags: 0

@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45ac34b85fba1d149960e5eaa14e3880, type: 3}
+  m_Name: 5.Horang_3
+  m_EditorClassIdentifier: 
+  lines:
+  - character: {fileID: 11400000, guid: 878b24b348965614688e96db68a7fa5c, type: 2}
+    text: "\uB098\uC57D\uD55C \uB140\uC11D!! \n\uB0A0 \uB530\uB77C\uC640\uB77C!!"
+  - character: {fileID: 11400000, guid: 878b24b348965614688e96db68a7fa5c, type: 2}
+    text: "\uD638\uB791\uC774 \uAE30\uC6B4\uC774 \uC193\uC544\uB098\uAC8C \uD574\uC8FC\uC9C0!!"

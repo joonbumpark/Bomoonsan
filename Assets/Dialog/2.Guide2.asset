@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lines:
   - character: {fileID: 11400000, guid: 8610f398d707ff949a315657ba68f933, type: 2}
-    text: "\uC548\uB155 \uB098\uB294 \uC774 \uC0B0\uC744 \uC9C0\uD0A4\uB294 \uC218\uD638\uC6A9.\n\uC6A9\uC774\uC57C."
+    text: "\uC548\uB155!! \uB098\uB294 \uC774 \uC0B0\uC744 \uC9C0\uD0A4\uB294 \uC218\uD638\uC6A9.\n\uC6A9\uC774\uC57C."
   - character: {fileID: 11400000, guid: 8610f398d707ff949a315657ba68f933, type: 2}
-    text: "\uCC29\uD55C\uC77C\uD558\uB294\uAD6C\uB098 \uAE38\uC54C\uB824\uC90C"
+    text: "\uCC29\uD55C \uC77C\uD558\uB294\uAD6C\uB098!!\n\uB0B4\uAC00 \uAE38\uC744
+      \uC54C\uB824\uC904\uAC8C."
   - character: {fileID: 11400000, guid: 8610f398d707ff949a315657ba68f933, type: 2}
-    text: "\uC5EC\uC758\uC8FC\uC758 \uBE5B\uC744 \uB530\uB77C \uAC00!"
+    text: "\uC5EC\uC758\uC8FC\uC758 \uBE5B\uC744 \uB530\uB77C \uAC00!!"

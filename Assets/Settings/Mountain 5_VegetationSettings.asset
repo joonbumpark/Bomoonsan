@@ -173,7 +173,7 @@ MonoBehaviour:
     - {fileID: 7296054959696050501, guid: 367ab66e2689a8345a8fb8fd14a4f90c, type: 3}
     - {fileID: 5935278547815300987, guid: e05ae677c7b3bc546bd36b488586fb0c, type: 3}
     - {fileID: 2479184009378418726, guid: b62637568d07eb141b948ab45ea8c3d4, type: 3}
-    count: 120
+    count: 100
     minHeight: 0
     maxHeight: 0.5
     minSlope: 0
@@ -364,8 +364,8 @@ MonoBehaviour:
     prefabs:
     - {fileID: 9190336210975329313, guid: 3e491ab9cc5ee2f44ba6c58e9a4e03a0, type: 3}
     count: 60
-    minHeight: 0.55
-    maxHeight: 0.85
+    minHeight: 0.809
+    maxHeight: 1
     minSlope: 0
     maxSlope: 0.35
     avoidPath: 1
@@ -420,7 +420,6 @@ MonoBehaviour:
     minDistance: 0.5
     gpuInstanced: 1
   seed: 0
-  waterSurfaceMargin: 0.3
   densityMultiplier: 1
   instancingChunkSize: 25
   instancingMaxDrawDistance: 150
