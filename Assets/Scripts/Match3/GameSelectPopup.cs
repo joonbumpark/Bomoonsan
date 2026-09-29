@@ -15,6 +15,9 @@ namespace Match3
     /// AppFlowManager가 게임 선택 순간(GameSelected 처리 시점)에 담당하고, 이 컴포넌트는
     /// 텍스트를 읽고 쓰는 창구 역할만 한다.
     ///
+    /// 옵션 버튼(optionButton)을 누르면 로비 옵션 팝업(LobbyOptionPopup)을 연다. 화면이
+    /// 다시 열릴 때(Show)는 옵션 팝업이 닫힌 상태로 시작한다.
+    ///
     /// 이 팝업이 앱의 첫 화면(메인)이라 뒤로 갈 곳이 없다 - 닫기 버튼은 없다.
     /// </summary>
     public class GameSelectPopup : MonoBehaviour
@@ -28,6 +31,8 @@ namespace Match3
 
         [SerializeField] private GameButtonEntry[] gameButtons;
         [SerializeField] private TMP_InputField nicknameInput;
+        [SerializeField] private Button optionButton;
+        [SerializeField] private LobbyOptionPopup lobbyOptionPopup;
 
         public event Action<GameKind> GameSelected;
 
@@ -49,9 +54,18 @@ namespace Match3
                 var kind = entry.kind;
                 entry.button.onClick.AddListener(() => GameSelected?.Invoke(kind));
             }
+
+            if (optionButton != null && lobbyOptionPopup != null)
+                optionButton.onClick.AddListener(lobbyOptionPopup.Open);
         }
 
-        public void Show() => gameObject.SetActive(true);
+        public void Show()
+        {
+            gameObject.SetActive(true);
+            if (lobbyOptionPopup != null)
+                lobbyOptionPopup.Close();
+        }
+
         public void Hide() => gameObject.SetActive(false);
     }
 }

@@ -90,6 +90,14 @@ namespace Match3
             StartCoroutine(SpawnLoop());
         }
 
+        /// <summary>진행 중인 라운드를 결과 없이 멈춘다(RoundEnded 안 보냄) - 설정 팝업의
+        /// 다시하기/그만하기에서 AppFlowManager가 부른다.</summary>
+        public void AbortRound()
+        {
+            StopAllCoroutines();
+            roundActive = false;
+        }
+
         private void Update()
         {
             if (!roundActive)
@@ -263,14 +271,14 @@ namespace Match3
 
         private void UpdateHud()
         {
-            scoreText.text = $"점수: {score}";
+            scoreText.text = score.ToString();
 
             int secondsLeft = Mathf.CeilToInt(timeRemaining);
             if (secondsLeft == lastDisplayedSeconds)
                 return;
 
             lastDisplayedSeconds = secondsLeft;
-            timerText.text = $"남은 시간: {secondsLeft / 60}:{secondsLeft % 60:00}";
+            timerText.text = $"{secondsLeft / 60}:{secondsLeft % 60:00}";
         }
     }
 }

@@ -20,6 +20,14 @@ namespace Match3
         /// </summary>
         void BeginRound(int? seed = null);
 
+        /// <summary>
+        /// 진행 중인 라운드를 중간에 멈춘다(타이머/코루틴 정지). RoundEnded는 보내지 않는다 -
+        /// 게임 화면을 숨겨도 매니저의 Update는 계속 돌기 때문에, 중간에 나가거나 다시
+        /// 시작할 땐 반드시 이걸 먼저 불러서 숨겨진 라운드가 나중에 끝나며 결과 화면을
+        /// 띄우지 않게 한다.
+        /// </summary>
+        void AbortRound();
+
         /// <summary>게임 화면을 보이거나 숨긴다. AppFlowManager가 메뉴/결과 화면과 전환할 때 쓴다.</summary>
         void SetVisible(bool visible);
     }

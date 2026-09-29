@@ -86,7 +86,7 @@ namespace Match3
         private const float NextPanelHeight = 260f;
         private const float ControlBarHeight = 220f;
 
-        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [Header("씬 UI (TetrisCanvas 프리팹 인스턴스)")]
         [SerializeField] private GameObject canvasRoot;
         [SerializeField] private TextMeshProUGUI scoreText;
         [SerializeField] private TextMeshProUGUI timerText;
@@ -138,8 +138,8 @@ namespace Match3
 
         /// <summary>
         /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
-        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
-        /// 돌리거나 수동으로 연결하면 된다.
+        /// 한 번에 알려주고 멈춘다 - 씬의 TetrisCanvas 인스턴스에서 인스펙터로
+        /// 다시 연결하면 된다.
         /// </summary>
         private bool ValidateSceneRefs()
         {
@@ -165,7 +165,7 @@ namespace Match3
 
             Debug.LogError(
                 $"[TetrisGameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
-                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                "씬의 TetrisCanvas 프리팹 인스턴스에서 인스펙터로 직접 연결할 것.",
                 this);
             return false;
         }
@@ -194,6 +194,14 @@ namespace Match3
             UpdateHud();
             RedrawBoard();
             SetVisible(true);
+        }
+
+        /// <summary>진행 중인 라운드를 결과 없이 멈춘다(RoundEnded 안 보냄) - 설정 팝업의
+        /// 다시하기/그만하기에서 AppFlowManager가 부른다.</summary>
+        public void AbortRound()
+        {
+            StopAllCoroutines();
+            roundActive = false;
         }
 
         private void Update()
@@ -455,14 +463,14 @@ namespace Match3
         }
 
         // ----------------------------------------------------------------
-        // UI 생성 (실제 게임판/다음 블록 미리보기 - 둘 다 씬에 미리 박아둘 수 없다.
+        // UI 생성 (실제 게임판/다음 블록 미리보기 - 둘 다 프리팹에 미리 박아둘 수 없다.
         // 메인 판은 그리드 크기가 인스펙터 설정에 따라 달라지고, 미리보기는 4x4 미니
         // 셀을 매 조각마다 다시 칠해야 해서다. 캔버스/점수바/다음 블록 바(라벨)/조작
-        // 버튼 같은 나머지 UI는 전부 Bomoonsan > Build Game HUDs In Scene으로 씬에
-        // 미리 만들어둔다.)
+        // 버튼 같은 나머지 UI는 전부 TetrisCanvas 프리팹에 있고, 위치/아트는 프리팹에서
+        // 직접 고친다.)
         // ----------------------------------------------------------------
 
-        /// <summary>nextPreviewRoot(씬에 미리 만들어둔 4x4 바 안의 빈 자리) 밑에 실제로
+        /// <summary>nextPreviewRoot(프리팹에 미리 만들어둔 4x4 바 안의 빈 자리) 밑에 실제로
         /// 색칠할 미니 셀 16개를 만든다.</summary>
         private void BuildNextPreviewGrid()
         {
@@ -531,7 +539,7 @@ namespace Match3
             return new Vector2(x, y);
         }
 
-        /// <summary>씬에 미리 만들어둔 조작 버튼 5개에 클릭/누르고 있기 동작을 연결한다.</summary>
+        /// <summary>프리팹에 미리 만들어둔 조작 버튼 5개에 클릭/누르고 있기 동작을 연결한다.</summary>
         private void WireControlButtons()
         {
             AddRepeatingTrigger(leftButton.gameObject, () => TryMove(-1, 0));
@@ -638,14 +646,14 @@ namespace Match3
 
         private void UpdateHud()
         {
-            scoreText.text = $"점수: {score}";
+            scoreText.text = score.ToString();
 
             int secondsLeft = Mathf.CeilToInt(timeRemaining);
             if (secondsLeft == lastDisplayedSeconds)
                 return;
 
             lastDisplayedSeconds = secondsLeft;
-            timerText.text = $"남은 시간: {secondsLeft / 60}:{secondsLeft % 60:00}";
+            timerText.text = $"{secondsLeft / 60}:{secondsLeft % 60:00}";
         }
     }
 }

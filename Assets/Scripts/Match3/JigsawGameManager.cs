@@ -8,14 +8,14 @@ using UnityEngine.UI;
 namespace Match3
 {
     /// <summary>
-    /// 16조각(4x4) 직소 퍼즐. 미리 준비된 그림 2장(캐릭터 사진)을 번갈아 16조각으로 잘라
+    /// 16조각(4x4) 직소 퍼즐. 미리 준비된 그림 2장(캐릭터 사진)을 16조각으로 잘라
     /// 뒤섞어 놓고, 두 조각을 순서대로 탭하면 서로 자리를 바꾼다. 원래 그림대로 맞추면
-    /// 점수를 얻고(적게 움직일수록 보너스가 큼) 곧바로 다음 그림으로 넘어간다 - 제한시간
-    /// 동안 몇 판이나 맞추는지가 점수가 된다.
+    /// 점수를 얻고(적게 움직일수록 보너스가 큼) 곧바로 다음 그림으로 넘어간다.
     ///
-    /// 그림 2장은 고정이라(시드로 뒤섞는 순서만 무작위) 라운드를 시작하면 항상 첫 번째
-    /// 그림부터 번갈아 나온다 - 대전에서도 같은 시드면 두 플레이어가 같은 순서로 같은
-    /// 그림/뒤섞임을 받는다.
+    /// 라운드마다 두 그림 중 어느 쪽이 먼저 나올지는 무작위다(시드로 결정 - 같은 시드면
+    /// 같은 순서/뒤섞임). 두 장을 모두 맞추면 제한시간 전이라도 라운드가 끝나고, 남은
+    /// 시간(초)을 pointsPerRemainingSecond 배로 환산해 점수에 더한다. 시간 안에 다 못
+    /// 맞추면 그때까지 맞춘 그림의 점수만 남는다.
     /// </summary>
     public class JigsawGameManager : MonoBehaviour, IRoundGame
     {
@@ -26,6 +26,8 @@ namespace Match3
 
         [Header("라운드 설정")]
         public float roundDurationSeconds = 90f;
+        [Tooltip("그림 2장을 다 맞췄을 때 남은 시간 1초당 더해주는 점수")]
+        public int pointsPerRemainingSecond = 10;
 
         [Header("연출")]
         public float solvedCelebrationSeconds = 0.9f;
@@ -40,7 +42,7 @@ namespace Match3
         private const float PreviewBarHeight = 200f;
         private const float HintBarHeight = 110f;
 
-        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [Header("씬 UI (JigsawCanvas 프리팹 인스턴스)")]
         [SerializeField] private GameObject canvasRoot;
         [SerializeField] private TextMeshProUGUI scoreText;
         [SerializeField] private TextMeshProUGUI timerText;
@@ -57,6 +59,7 @@ namespace Match3
         private readonly Sprite[] fullSpriteCache = new Sprite[ImageCount];
         private readonly Sprite[][] pieceSpriteCache = new Sprite[ImageCount][];
         private int puzzleIndex = -1;
+        private int puzzlesSolved;
 
         private int pieceCount;
         private int[] displayedPieceId; // slotIndex -> 원래 조각 id (0..pieceCount-1). 전부 identity면 완성.
@@ -89,8 +92,8 @@ namespace Match3
 
         /// <summary>
         /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
-        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
-        /// 돌리거나 수동으로 연결하면 된다.
+        /// 한 번에 알려주고 멈춘다 - 씬의 JigsawCanvas 인스턴스에서 인스펙터로
+        /// 다시 연결하면 된다.
         /// </summary>
         private bool ValidateSceneRefs()
         {
@@ -112,7 +115,7 @@ namespace Match3
 
             Debug.LogError(
                 $"[JigsawGameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
-                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                "씬의 JigsawCanvas 프리팹 인스턴스에서 인스펙터로 직접 연결할 것.",
                 this);
             return false;
         }
@@ -128,11 +131,21 @@ namespace Match3
             timeRemaining = roundDurationSeconds;
             lastDisplayedSeconds = -1;
             rng = new System.Random(seed ?? Environment.TickCount);
-            puzzleIndex = -1; // 라운드 시작마다 항상 첫 번째 그림부터 번갈아 나오게 한다.
+            puzzlesSolved = 0;
+            // GenerateNewPuzzle이 +1 해서 쓰므로, 무작위로 고른 첫 그림의 바로 앞 번호로 둔다.
+            puzzleIndex = rng.Next(ImageCount) - 1;
 
             GenerateNewPuzzle();
             UpdateHud();
             SetVisible(true);
+        }
+
+        /// <summary>진행 중인 라운드를 결과 없이 멈춘다(RoundEnded 안 보냄) - 설정 팝업의
+        /// 다시하기/그만하기에서 AppFlowManager가 부른다.</summary>
+        public void AbortRound()
+        {
+            StopAllCoroutines();
+            roundActive = false;
         }
 
         private void Update()
@@ -273,25 +286,42 @@ namespace Match3
         private IEnumerator SolvedThenNextPuzzle()
         {
             inputLocked = true;
+            puzzlesSolved++;
             int bonus = Mathf.Max(100, 500 - moves * 15);
             score += bonus;
-            hintText.text = $"완성! +{bonus}점";
+
+            bool allSolved = puzzlesSolved >= ImageCount;
+            if (allSolved)
+            {
+                // 마지막 그림까지 맞췄으면 타이머를 바로 멈추고(roundActive = false) 남은
+                // 시간을 점수로 환산한다 - 축하 연출 동안 시간이 더 줄지 않게 한다.
+                roundActive = false;
+                int timeBonus = Mathf.CeilToInt(timeRemaining) * pointsPerRemainingSecond;
+                score += timeBonus;
+                hintText.text = $"모두 완성! +{bonus}점, 남은 시간 +{timeBonus}점";
+            }
+            else
+            {
+                hintText.text = $"완성! +{bonus}점";
+            }
             UpdateHud();
 
             Match3EffectSpawner.SpawnCelebration(this, boardRoot, Vector2.zero);
-            Match3EffectSpawner.SpawnPopupText(this, boardRoot, Vector2.zero, "완성!", new Color(1f, 0.85f, 0.3f), 120f);
+            Match3EffectSpawner.SpawnPopupText(this, boardRoot, Vector2.zero, allSolved ? "모두 완성!" : "완성!", new Color(1f, 0.85f, 0.3f), 120f);
 
             yield return new WaitForSeconds(solvedCelebrationSeconds);
 
-            if (roundActive)
+            if (allSolved)
+                RoundEnded?.Invoke(score);
+            else if (roundActive)
                 GenerateNewPuzzle();
         }
 
         // ----------------------------------------------------------------
         // 보드 루트 생성 (실제 게임판 - 그리드 크기가 인스펙터 설정에 따라 달라져서
-        // 씬에 미리 박아둘 수 없다. 캔버스/점수바/완성본 미리보기 바/안내문구 같은
-        // 나머지 UI는 전부 Bomoonsan > Build Game HUDs In Scene으로 씬에 미리
-        // 만들어둔다.)
+        // 프리팹에 미리 박아둘 수 없다. 캔버스/점수바/완성본 미리보기 바/안내문구 같은
+        // 나머지 UI는 전부 JigsawCanvas 프리팹에 있고, 위치/아트는 프리팹에서 직접
+        // 고친다.)
         // ----------------------------------------------------------------
 
         private void BuildBoardRoot(Transform parent)
@@ -372,7 +402,7 @@ namespace Match3
 
         private void UpdateHud()
         {
-            scoreText.text = $"점수: {score}";
+            scoreText.text = score.ToString();
             if (roundActive && !inputLocked)
                 hintText.text = $"조각을 두 번 탭해 자리를 바꾸세요 (이동 {moves}회)";
 
@@ -381,7 +411,7 @@ namespace Match3
                 return;
 
             lastDisplayedSeconds = secondsLeft;
-            timerText.text = $"남은 시간: {secondsLeft / 60}:{secondsLeft % 60:00}";
+            timerText.text = $"{secondsLeft / 60}:{secondsLeft % 60:00}";
         }
     }
 }

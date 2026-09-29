@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Match3
 {
@@ -28,6 +29,14 @@ namespace Match3
     /// 고르면 그 순간 랜덤 닉네임을 만들어 대신 쓴다. 다음에 화면을 다시 열면 마지막으로
     /// 쓴 닉네임(랜덤 생성분 포함)이 입력창에 미리 채워진다(ShowGameSelect).
     ///
+    /// 게임 중에는 모든 게임 공용 옵션 버튼(optionButton) 하나만 떠 있고, 누르면 설정
+    /// 팝업(SettingsPopup.Open - 게임 일시정지)을 연다. 게임 화면이 아닐 땐 버튼을 숨긴다.
+    /// 둘 다 AppCanvas(게임 중엔 꺼짐) 밖, 게임 캔버스들보다 위에 그려지는 별도 캔버스에
+    /// 있어야 한다. 설정 팝업의 "다시하기"는 지금 게임을 같은 모드로 처음부터 다시
+    /// 시작하고(OnRetryClicked와 동일), "그만하기"는 게임 선택 화면으로 돌아간다 - 둘 다
+    /// 진행 중인 라운드를 먼저 중단한다(AbortCurrentRound). 대전 중이었다면 그 시점
+    /// 점수를 제출해 매치를 끝내고, 뒤늦게 오는 그 매치 결과는 무시한다.
+    ///
     /// 아래 씬 UI 필드는 전부 인스펙터에서 미리 연결돼 있어야 한다 - Canvas/패널을
     /// 코드로 매번 새로 만드는 대신 Bomoonsan > Build App Shell In Scene 메뉴
     /// (Assets/Editor/AppShellSceneBuilder.cs)로 InGameScene에 미리 배치해두고,
@@ -48,6 +57,10 @@ namespace Match3
         [SerializeField] private MatchmakingPopup matchmakingPopup;
         [SerializeField] private ResultPopup resultPopup;
 
+        [Header("씬 UI - 인게임 (게임 중에만 보이는 공용 옵션 버튼 + 설정 팝업)")]
+        [SerializeField] private Button optionButton;
+        [SerializeField] private SettingsPopup settingsPopup;
+
         [Header("통신 중 인디케이터 (비워두면 임시 도형을 자동으로 씀)")]
         [SerializeField] private Sprite networkIndicatorIcon;
 
@@ -60,6 +73,7 @@ namespace Match3
 
         private bool isVersusMatch;
         private string currentMatchId;
+        private bool awaitingMatchResult; // 이번 매치 점수를 제출하고 결과를 기다리는 중인지.
         private string currentOpponentName;
         private Action pendingOnOpenAction;
 
@@ -141,6 +155,8 @@ namespace Match3
             Check(playModePopup, nameof(playModePopup));
             Check(matchmakingPopup, nameof(matchmakingPopup));
             Check(resultPopup, nameof(resultPopup));
+            Check(optionButton, nameof(optionButton));
+            Check(settingsPopup, nameof(settingsPopup));
 
             if (missing.Count == 0)
                 return true;
@@ -163,6 +179,10 @@ namespace Match3
 
             resultPopup.ExitClicked += ShowGameSelect;
             resultPopup.RetryClicked += OnRetryClicked;
+
+            optionButton.onClick.AddListener(settingsPopup.Open);
+            settingsPopup.RestartRequested += OnSettingsRestartRequested;
+            settingsPopup.ExitToMenuRequested += OnSettingsExitRequested;
         }
 
         // ----------------------------------------------------------------
@@ -176,6 +196,7 @@ namespace Match3
             matchmakingPopup.gameObject.SetActive(panel == matchmakingPopup.gameObject);
             resultPopup.gameObject.SetActive(panel == resultPopup.gameObject);
             appCanvasRoot.SetActive(panel != null);
+            optionButton.gameObject.SetActive(panel == null);
 
             // 패널이 하나도 안 떠 있을 때(panel == null)만 실제 게임 화면이고,
             // 그중에서도 지금 선택된 게임만 보이게 한다.
@@ -264,6 +285,36 @@ namespace Match3
                 OnSinglePlayClicked();
         }
 
+        /// <summary>설정 팝업의 "다시하기" - 진행 중인 라운드를 버리고 같은 게임/모드로
+        /// 처음부터 다시 한다 (대전이면 새 상대를 다시 찾는다).</summary>
+        private void OnSettingsRestartRequested()
+        {
+            AbortCurrentRound();
+            OnRetryClicked();
+        }
+
+        /// <summary>설정 팝업의 "그만하기" - 진행 중인 라운드를 버리고 게임 선택 화면으로.</summary>
+        private void OnSettingsExitRequested()
+        {
+            AbortCurrentRound();
+            ShowGameSelect();
+        }
+
+        /// <summary>
+        /// 진행 중인 라운드를 결과 없이 멈춘다. 대전 중이었다면 상대가 서버 타임아웃까지
+        /// 기다리지 않도록 그 시점 점수를 바로 제출해 매치를 끝내고, 그 매치 결과는
+        /// 받아도 무시한다(awaitingMatchResult = false).
+        /// </summary>
+        private void AbortCurrentRound()
+        {
+            if (isVersusMatch && currentMatchId != null && network.IsConnected)
+                network.SubmitScore(currentMatchId, CurrentGame.CurrentScore);
+
+            awaitingMatchResult = false;
+            currentMatchId = null;
+            CurrentGame.AbortRound();
+        }
+
         private void OnCancelMatchmakingClicked()
         {
             network.LeaveQueue();
@@ -311,6 +362,7 @@ namespace Match3
             if (isVersusMatch)
             {
                 ShowWaitingForResult();
+                awaitingMatchResult = true;
                 network.SubmitScore(currentMatchId, finalScore);
             }
             else
@@ -339,6 +391,11 @@ namespace Match3
 
         private void HandleMatchResult(string result, int yourScore, int opponentScore)
         {
+            // 중간에 그만둔 매치의 결과가 뒤늦게 오면 무시한다 (AbortCurrentRound 참고).
+            if (!awaitingMatchResult)
+                return;
+            awaitingMatchResult = false;
+
             // 상대 점수는 지금 결과 팝업엔 별도 자리가 없다 - 내 점수만 보여주고, 승패는
             // 이미지로 표시한다. 리더보드 목록은 다시 요청해서 HandleLeaderboard가 채운다.
             ShowResult(yourScore);

@@ -14,7 +14,7 @@ namespace Match3
         /// <summary>
         /// "제한시간 라운드 게임" 하나가 쓰는 전체화면 캔버스(배경 포함)를 만든다.
         /// Whack/Simon 게임 매니저가 아직 이 위에 자기 판/HUD를 코드로 올린다 (매치3/
-        /// 테트리스/직소는 GameHudSceneBuilder가 씬에 미리 만들어둔 캔버스를 쓴다).
+        /// 테트리스/직소는 Resources/Prefabs의 XxxCanvas 프리팹을 씬에 배치해 쓴다).
         /// </summary>
         public static GameObject CreateGameCanvasRoot(Transform parent, string name)
         {
@@ -47,14 +47,14 @@ namespace Match3
             topBar.sizeDelta = new Vector2(0, height);
             topBar.anchoredPosition = Vector2.zero;
 
-            scoreText = CreateText("ScoreText", topBar, "점수: 0", 56, TextAnchor.MiddleLeft);
+            scoreText = CreateText("ScoreText", topBar, "0", 56, TextAnchor.MiddleLeft);
             var scoreRt = scoreText.rectTransform;
             scoreRt.anchorMin = new Vector2(0, 0);
             scoreRt.anchorMax = new Vector2(0.5f, 1);
             scoreRt.offsetMin = new Vector2(40, 0);
             scoreRt.offsetMax = Vector2.zero;
 
-            timerText = CreateText("TimerText", topBar, "남은 시간: 1:30", 56, TextAnchor.MiddleRight);
+            timerText = CreateText("TimerText", topBar, "1:30", 56, TextAnchor.MiddleRight);
             var timerRt = timerText.rectTransform;
             timerRt.anchorMin = new Vector2(0.5f, 0);
             timerRt.anchorMax = new Vector2(1, 1);

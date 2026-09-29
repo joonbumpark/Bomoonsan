@@ -133,7 +133,10 @@ namespace Match3
         /// 매치를 모양별로 묶어서 반환한다. 가로/세로 런이 서로 겹치는 칸을 공유하면 하나의
         /// 그룹으로 합쳐지며, 그룹의 모양에 따라 아이템 블록 생성 여부가 결정된다.
         ///
-        /// - 4개짜리 한 줄(가로만 또는 세로만): 합쳐진 방향으로 한 줄을 지우는 아이템(LineHorizontal/LineVertical)
+        /// - 4개짜리 한 줄(가로만 또는 세로만): 한 줄을 지우는 아이템(LineHorizontal/LineVertical).
+        ///   방향은 swapWasHorizontal을 주면(스왑으로 매치를 만들었을 때) 플레이어가 블록을
+        ///   움직인 방향을 따른다 - 좌우로 움직였으면 가로, 위아래로 움직였으면 세로. 안 주면
+        ///   (중력 연쇄 매치) 줄이 놓인 방향을 따른다.
         /// - 5개 이상 한 줄(가로만 또는 세로만): 같은 색상을 화면 전체에서 지우는 아이템(ColorBomb)
         /// - 일자가 아닌 모양(가로 런과 세로 런이 하나라도 겹쳐서 생기는 코너/T/십자 등 어떤 모양이든):
         ///   3x3을 폭발시키는 아이템(AreaBomb). 겹치려면 두 런 모두 길이 3 이상이어야 하므로
@@ -142,7 +145,7 @@ namespace Match3
         /// preferredSpawnCell을 주면(스왑으로 매치를 만들었을 때, 플레이어가 드래그해서 옮긴
         /// 칸) 그 칸이 속한 그룹은 기본 위치(줄 가운데/교차점) 대신 그 칸에 아이템을 만든다.
         /// </summary>
-        public List<MatchGroup> FindMatchGroups(Vector2Int? preferredSpawnCell = null)
+        public List<MatchGroup> FindMatchGroups(Vector2Int? preferredSpawnCell = null, bool? swapWasHorizontal = null)
         {
             var hRuns = new List<(int row, int start, int end)>();
             var vRuns = new List<(int col, int start, int end)>();
@@ -304,13 +307,13 @@ namespace Match3
                 {
                     var run = hList[0];
                     spawnCell = new Vector2Int((run.start + run.end) / 2, run.row);
-                    spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: true);
+                    spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: swapWasHorizontal ?? true);
                 }
                 else if (vCount == 1)
                 {
                     var run = vList[0];
                     spawnCell = new Vector2Int(run.col, (run.start + run.end) / 2);
-                    spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: false);
+                    spawnItem = ItemForLineLength(run.end - run.start + 1, horizontal: swapWasHorizontal ?? false);
                 }
 
                 // 플레이어가 드래그해서 옮긴 칸이 이 그룹 안에 있으면, 기본 위치 대신 그

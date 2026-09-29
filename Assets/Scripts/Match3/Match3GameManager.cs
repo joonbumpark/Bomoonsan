@@ -52,7 +52,7 @@ namespace Match3
             new Color(0.61f, 0.35f, 0.71f), // 보라
         };
 
-        [Header("씬 UI (Bomoonsan > Build Game HUDs In Scene 로 생성)")]
+        [Header("씬 UI (Match3Canvas 프리팹 인스턴스)")]
         [SerializeField] private GameObject canvasRoot;
         [SerializeField] private TextMeshProUGUI scoreText;
         [SerializeField] private TextMeshProUGUI timerText;
@@ -83,8 +83,8 @@ namespace Match3
 
         /// <summary>
         /// 인스펙터에서 연결이 빠진 씬 UI 필드가 있으면 NRE 대신 어떤 필드가 비었는지
-        /// 한 번에 알려주고 멈춘다 - Bomoonsan > Build Game HUDs In Scene을 다시
-        /// 돌리거나 수동으로 연결하면 된다.
+        /// 한 번에 알려주고 멈춘다 - 씬의 Match3Canvas 인스턴스에서 인스펙터로
+        /// 다시 연결하면 된다.
         /// </summary>
         private bool ValidateSceneRefs()
         {
@@ -104,7 +104,7 @@ namespace Match3
 
             Debug.LogError(
                 $"[Match3GameManager] 씬 UI 참조가 비어 있음: {string.Join(", ", missing)}\n" +
-                "Bomoonsan > Build Game HUDs In Scene 메뉴로 다시 생성하거나 인스펙터에서 직접 연결할 것.",
+                "씬의 Match3Canvas 프리팹 인스턴스에서 인스펙터로 직접 연결할 것.",
                 this);
             return false;
         }
@@ -137,6 +137,14 @@ namespace Match3
             SetVisible(true);
         }
 
+        /// <summary>진행 중인 라운드를 결과 없이 멈춘다(RoundEnded 안 보냄) - 설정 팝업의
+        /// 다시하기/그만하기에서 AppFlowManager가 부른다.</summary>
+        public void AbortRound()
+        {
+            StopAllCoroutines();
+            roundActive = false;
+        }
+
         private void Update()
         {
             if (!roundActive)
@@ -159,11 +167,11 @@ namespace Match3
 
         // ----------------------------------------------------------------
         // 보드 루트 생성 (실제 게임판 - 그리드 크기가 인스펙터 설정에 따라 달라져서
-        // 씬에 미리 박아둘 수 없다. 캔버스/점수바/안내문구 같은 나머지 UI는 전부
-        // Bomoonsan > Build Game HUDs In Scene으로 씬에 미리 만들어둔다.)
+        // 프리팹에 미리 박아둘 수 없다. 캔버스/점수바/안내문구 같은 나머지 UI는 전부
+        // Match3Canvas 프리팹에 있고, 위치/아트는 프리팹에서 직접 고친다.)
         // ----------------------------------------------------------------
 
-        // 상단 바/하단 안내문구가 차지하는 고정 높이 (씬의 실제 배치와 맞춰야 한다).
+        // 상단 바/하단 안내문구가 차지하는 고정 높이 (Match3Canvas 프리팹의 실제 배치와 맞춰야 한다).
         // 보드 크기를 화면에 맞출 때도 사용한다.
         private const float TopBarHeight = 220f;
         private const float HintBarHeight = 100f;
@@ -329,8 +337,9 @@ namespace Match3
             }
             else
             {
-                // 플레이어가 드래그해서 옮긴 타일이 도착한 칸(b)에 아이템이 생기게 한다.
-                yield return StartCoroutine(ResolveMatches(b));
+                // 플레이어가 드래그해서 옮긴 타일이 도착한 칸(b)에 아이템이 생기게 하고,
+                // 4개짜리 줄 아이템의 방향은 드래그한 방향(좌우면 가로, 위아래면 세로)을 따른다.
+                yield return StartCoroutine(ResolveMatches(b, swapWasHorizontal: a.y == b.y));
             }
 
             if (roundActive && !board.HasAnyValidMove())
@@ -426,12 +435,13 @@ namespace Match3
         /// 스왑으로 만들어진 첫 매치를 모양별로 처리한다(아이템 생성 포함한 뒤 연쇄 진행).
         /// preferredSpawnCell은 플레이어가 드래그해서 옮긴 칸 - 그 칸이 매치에 포함돼
         /// 있으면 아이템이 기본 위치 대신 그 자리에 생긴다(Match3Board.FindMatchGroups 참고).
+        /// swapWasHorizontal은 드래그 방향 - 4개짜리 줄 아이템의 가로/세로를 이걸로 정한다.
         /// 중력으로 떨어지며 생기는 이후 연쇄 매치는 드래그 위치가 없으니 RunCascade 안에서
         /// 따로 기본 위치로 계산한다.
         /// </summary>
-        private IEnumerator ResolveMatches(Vector2Int? preferredSpawnCell)
+        private IEnumerator ResolveMatches(Vector2Int? preferredSpawnCell, bool swapWasHorizontal)
         {
-            var groups = board.FindMatchGroups(preferredSpawnCell);
+            var groups = board.FindMatchGroups(preferredSpawnCell, swapWasHorizontal);
             var cellsToClear = ApplyMatchGroupsAndGetClearSet(groups);
             yield return StartCoroutine(RunCascade(cellsToClear, chain: 1));
         }
@@ -625,14 +635,14 @@ namespace Match3
 
         private void UpdateHud()
         {
-            scoreText.text = $"점수: {score}";
+            scoreText.text = score.ToString();
 
             int secondsLeft = Mathf.CeilToInt(timeRemaining);
             if (secondsLeft == lastDisplayedSeconds)
                 return;
 
             lastDisplayedSeconds = secondsLeft;
-            timerText.text = $"남은 시간: {secondsLeft / 60}:{secondsLeft % 60:00}";
+            timerText.text = $"{secondsLeft / 60}:{secondsLeft % 60:00}";
         }
     }
 }
