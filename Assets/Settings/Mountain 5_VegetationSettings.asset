@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   groups:
   - label: Grass
+    enabled: 1
     prefabs:
     - {fileID: 3036827482424969206, guid: 53083e9d6ba91ba4cad309a95b8c8f20, type: 3}
     - {fileID: 3036827482424969206, guid: 3ade7fcf53c8246418eb3c493d6d2178, type: 3}
     - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
+    - {fileID: 6739804228592001243, guid: 6cdd667aa0034cd4dadc8d58a65fb098, type: 3}
     count: 90000
     minHeight: -0.25
     maxHeight: 0.55
@@ -39,9 +41,10 @@ MonoBehaviour:
     colorVariation: 0.35
     colorVariantCount: 4
     castShadows: 0
-    minDistance: 0.4
+    minDistance: 0.3
     gpuInstanced: 1
   - label: AlpineTurf
+    enabled: 1
     prefabs:
     - {fileID: 3036827482424969206, guid: 3ade7fcf53c8246418eb3c493d6d2178, type: 3}
     - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
@@ -66,9 +69,10 @@ MonoBehaviour:
     colorVariation: 0.45
     colorVariantCount: 4
     castShadows: 0
-    minDistance: 0.5
+    minDistance: 0.3
     gpuInstanced: 1
   - label: CliffTuft
+    enabled: 1
     prefabs:
     - {fileID: 3036827482424969206, guid: 53083e9d6ba91ba4cad309a95b8c8f20, type: 3}
     - {fileID: 2509144546569432699, guid: aa8ea3d66a87ed449832e8709ec90517, type: 3}
@@ -96,6 +100,7 @@ MonoBehaviour:
     minDistance: 1
     gpuInstanced: 1
   - label: Rock
+    enabled: 1
     prefabs:
     - {fileID: 4140774597986965270, guid: 58cd8dc8c2359174baa15aa31e302c8b, type: 3}
     - {fileID: 2549054593802932585, guid: bee651b89d6b3ef48b19cfe8a4c9fa42, type: 3}
@@ -124,6 +129,7 @@ MonoBehaviour:
     minDistance: 2
     gpuInstanced: 1
   - label: Decoration
+    enabled: 1
     prefabs:
     - {fileID: 3811120315536780707, guid: 7917e70f5baa68944aad80732cb08b3d, type: 3}
     - {fileID: 5984911598340929997, guid: 5228c984e5be7284d8d83c18096254dd, type: 3}
@@ -151,12 +157,13 @@ MonoBehaviour:
     minDistance: 1
     gpuInstanced: 1
   - label: Tree
+    enabled: 1
     prefabs:
     - {fileID: 5361428799875542787, guid: c31bf8ec8e29cd74f9fb9a970fde7a53, type: 3}
     - {fileID: 7296054959696050501, guid: 367ab66e2689a8345a8fb8fd14a4f90c, type: 3}
     - {fileID: 5935278547815300987, guid: e05ae677c7b3bc546bd36b488586fb0c, type: 3}
     - {fileID: 2479184009378418726, guid: b62637568d07eb141b948ab45ea8c3d4, type: 3}
-    count: 260
+    count: 120
     minHeight: 0
     maxHeight: 0.5
     minSlope: 0
@@ -180,9 +187,10 @@ MonoBehaviour:
     minDistance: 2
     gpuInstanced: 0
   - label: Tree2
+    enabled: 1
     prefabs:
     - {fileID: 6117071349010126079, guid: d250af4848f51154f9a2bf6a85b60ac2, type: 3}
-    count: 160
+    count: 130
     minHeight: 0.4
     maxHeight: 0.78
     minSlope: 0
@@ -205,7 +213,159 @@ MonoBehaviour:
     castShadows: 1
     minDistance: 1.5
     gpuInstanced: 0
+  - label: Shrub
+    enabled: 0
+    prefabs:
+    - {fileID: 5153741093904279990, guid: ef8374d642969b14baa54045236c5fb0, type: 3}
+    - {fileID: 3708295212793361695, guid: 8cf2966042f7c2f44ac97cda7cc59eff, type: 3}
+    count: 300
+    minHeight: 0
+    maxHeight: 0.55
+    minSlope: 0
+    maxSlope: 0.35
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 0
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.6
+    clusterScale: 30
+    clusterSeed: 6
+    alignToNormal: 1
+    uniformScaleRange: {x: 0.7, y: 1.3}
+    heightScaleVariation: 0.2
+    colorVariation: 0.35
+    colorVariantCount: 4
+    castShadows: 1
+    minDistance: 1.2
+    gpuInstanced: 1
+  - label: DeadWood
+    enabled: 0
+    prefabs:
+    - {fileID: 4026988788687868377, guid: c0c32672766a81647b04690fc9ed3595, type: 3}
+    - {fileID: 7098389285256826050, guid: fb070a2d31206d9499ecc8a77be0ebf0, type: 3}
+    - {fileID: 3010216212467657930, guid: 244ce2af788c0c346b86cbc0473811b0, type: 3}
+    - {fileID: 3125019525012259300, guid: c8b350551fbedc84c8025d7d29f3a018, type: 3}
+    count: 45
+    minHeight: 0
+    maxHeight: 0.7
+    minSlope: 0
+    maxSlope: 0.25
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 0
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.5
+    colliderHeight: 1.2
+    clusterAmount: 0.3
+    clusterScale: 15
+    clusterSeed: 8
+    alignToNormal: 1
+    uniformScaleRange: {x: 0.85, y: 1.2}
+    heightScaleVariation: 0
+    colorVariation: 0
+    colorVariantCount: 1
+    castShadows: 1
+    minDistance: 3
+    gpuInstanced: 0
+  - label: DeadTree
+    enabled: 0
+    prefabs:
+    - {fileID: 1215182899609276316, guid: c6a512d95615f534cbe31aba1aaa354c, type: 3}
+    - {fileID: 1932841404346126693, guid: c7827efbbf7212f42803476ce3f9d082, type: 3}
+    count: 18
+    minHeight: 0.55
+    maxHeight: 0.95
+    minSlope: 0.1
+    maxSlope: 0.5
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 1
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.7
+    clusterScale: 35
+    clusterSeed: 9
+    alignToNormal: 0
+    uniformScaleRange: {x: 1.3, y: 2.4}
+    heightScaleVariation: 0.2
+    colorVariation: 0
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 4
+    gpuInstanced: 0
+  - label: AutumnTree
+    enabled: 1
+    prefabs:
+    - {fileID: 1878419133961766566, guid: 7576a851246b87b44a329e48b471fa74, type: 3}
+    - {fileID: 2106199324287059230, guid: 08b4591ebf7ebc949992ffbbb55a3e65, type: 3}
+    - {fileID: 7133838927834314904, guid: 5f7a533db3c48a145a67a358b0caae56, type: 3}
+    - {fileID: 6824459359955506681, guid: 4efcd459c5cc3874fbc75c51c9ee1045, type: 3}
+    - {fileID: 2396577743480680694, guid: 2df8ba2382e44ad49936c53bc0bb2653, type: 3}
+    - {fileID: 8016501141386543118, guid: 96d3e102dfb1c0f44aeaecf042a62872, type: 3}
+    - {fileID: 2279230024769740032, guid: e66213dcef67b65409ced1c10cb99c26, type: 3}
+    - {fileID: 758810571116141321, guid: d3e7fc1d43c8ee44081e42478b37b018, type: 3}
+    - {fileID: 2458345136129133610, guid: f289fa399dc6ed94e9965fca5a881c8e, type: 3}
+    - {fileID: 6713330071496650646, guid: 835c8c368f92f914e99407c1761b06bb, type: 3}
+    - {fileID: 7349553109244023792, guid: 08e7a84c117f4a14b8448392e6b4e4cb, type: 3}
+    - {fileID: 4315449229577056866, guid: e05037177e97a114b91b679dfe9c2940, type: 3}
+    count: 110
+    minHeight: 0
+    maxHeight: 0.5
+    minSlope: 0
+    maxSlope: 0.25
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 1
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.85
+    clusterScale: 45
+    clusterSeed: 9
+    alignToNormal: 0
+    uniformScaleRange: {x: 1.6, y: 3.2}
+    heightScaleVariation: 0.15
+    colorVariation: 0
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 2
+    gpuInstanced: 0
+  - label: BlossomTree
+    enabled: 1
+    prefabs:
+    - {fileID: 9190336210975329313, guid: 3e491ab9cc5ee2f44ba6c58e9a4e03a0, type: 3}
+    count: 60
+    minHeight: 0.55
+    maxHeight: 0.85
+    minSlope: 0
+    maxSlope: 0.35
+    avoidPath: 1
+    avoidWater: 1
+    fadeWhenOccludingPlayer: 1
+    instanceTag: 
+    blockPlayer: 1
+    colliderRadius: 0.4
+    colliderHeight: 4
+    clusterAmount: 0.6
+    clusterScale: 35
+    clusterSeed: 13
+    alignToNormal: 0
+    uniformScaleRange: {x: 1.4, y: 2.6}
+    heightScaleVariation: 0.15
+    colorVariation: 0
+    colorVariantCount: 3
+    castShadows: 1
+    minDistance: 2.5
+    gpuInstanced: 0
   seed: 0
+  waterSurfaceMargin: 0.3
   densityMultiplier: 1
   instancingChunkSize: 25
   instancingMaxDrawDistance: 150

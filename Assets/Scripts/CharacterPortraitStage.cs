@@ -38,6 +38,13 @@ namespace Mountains
             public float yaw;
             public Vector3 offset;
 
+            // 모델 경계를 인스턴스 로컬 기준으로 한 번만 재서 저장한 것. Idle 애니메이션이
+            // 있으면 스키닝 경계가 프레임마다 달라서, 대화 스텝마다 다시 재면 같은 캐릭터인데도
+            // 구도가 조금씩 어긋난다.
+            public bool hasFramingBounds;
+            public Vector3 localCenter;
+            public float radius;
+
             public bool MatchesFraming(CharacterData character)
             {
                 return Mathf.Approximately(zoom, character.portraitZoom)
@@ -145,9 +152,9 @@ namespace Mountains
         // 다시 띄우지 않아도 바로 반영되게 한다 — 초상화 구도를 맞추는 건 값을 조금씩 바꿔가며
         // 눈으로 확인하는 작업이라, 매번 대화를 다시 재생해야 하면 맞추기가 어렵다.
         //
-        // 매 프레임 무조건 다시 프레이밍하지 않고 "값이 바뀌었을 때만" 하는 이유: Idle
-        // 애니메이션이 있으면 스키닝 경계가 프레임마다 흔들려서, 카메라가 그걸 따라 미세하게
-        // 계속 흔들린다.
+        // 값이 바뀌었을 때만 다시 프레이밍한다. 경계는 모델마다 한 번만 재서 저장해 두므로
+        // (PortraitModel.hasFramingBounds) Idle 애니메이션으로 스키닝 경계가 흔들려도
+        // 카메라는 따라 흔들리지 않는다.
         void LateUpdate()
         {
             if (_current == null || _currentCharacter == null)
@@ -295,24 +302,47 @@ namespace Mountains
             model.yaw = character.portraitYaw;
             model.offset = character.portraitOffset;
 
-            model.instance.localRotation = Quaternion.Euler(0f, character.portraitYaw, 0f);
-
-            if (!TryGetBounds(model, out var bounds))
+            if (!model.hasFramingBounds && !MeasureFramingBounds(model))
             {
                 Debug.LogWarning($"[CharacterPortraitStage] {character.name}의 초상화 프리팹에 " +
                     "Renderer가 없어 프레이밍을 건너뜁니다.");
                 return;
             }
 
+            model.instance.localRotation = Quaternion.Euler(0f, character.portraitYaw, 0f);
+
             // 경계를 감싸는 구가 화각에 딱 들어오는 거리. zoom이 클수록 더 당겨 찍는다.
-            float radius = Mathf.Max(0.01f, bounds.extents.magnitude);
+            float radius = model.radius;
             float zoom = Mathf.Max(0.01f, character.portraitZoom);
             float distance = radius / Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) / zoom;
 
-            Vector3 target = bounds.center + character.portraitOffset;
+            // 저장해 둔 로컬 중심을 지금 회전(yaw)으로 옮긴다 — 구 반지름은 회전과 무관하다.
+            Vector3 target = model.instance.TransformPoint(model.localCenter) + character.portraitOffset;
             _camera.transform.SetPositionAndRotation(target + new Vector3(0f, 0f, -distance), Quaternion.identity);
             _camera.nearClipPlane = Mathf.Max(0.01f, distance - radius * 2f);
             _camera.farClipPlane = distance + radius * 4f;
+        }
+
+        // 회전하지 않은 기본 자세에서 한 번 재서 인스턴스 로컬 좌표로 저장한다. 회전을
+        // 풀고 재는 이유: 축 정렬 경계(AABB)는 모델을 돌리면 크기가 달라져서, yaw마다
+        // 반지름이 바뀌면 줌이 같아도 거리가 달라진다.
+        static bool MeasureFramingBounds(PortraitModel model)
+        {
+            var rotation = model.instance.localRotation;
+            model.instance.localRotation = Quaternion.identity;
+
+            // 로컬 변환도 잰 자세(회전 없음) 그대로에서 해야 한다 — 회전을 되돌린 뒤에
+            // 변환하면 중심이 그 회전만큼 엉뚱한 곳으로 옮겨진다.
+            bool found = TryGetBounds(model, out var bounds);
+            if (found)
+            {
+                model.localCenter = model.instance.InverseTransformPoint(bounds.center);
+                model.radius = Mathf.Max(0.01f, bounds.extents.magnitude);
+                model.hasFramingBounds = true;
+            }
+
+            model.instance.localRotation = rotation;
+            return found;
         }
 
         static bool TryGetBounds(PortraitModel model, out Bounds bounds)

@@ -11,6 +11,13 @@ Shader "Mountains/TreeFade"
         _BaseMap ("Base Map", 2D) = "white" {}
         _BaseColor ("Tint (fade alpha in .a)", Color) = (1, 1, 1, 1)
         _ShadowAlphaCutoff ("Shadow Alpha Cutoff", Range(0, 1)) = 0.5
+
+        // 원본 잎 셰이더의 CUSTOM COLORS TINTING(단풍 등)을 옮겨 받는 값. 켜져 있으면 텍스처
+        // 색 대신 높이 그라데이션을 쓴다. 안 옮기면 페이드되는 동안 원래 초록 잎으로 돌아간다.
+        [ToggleUI] _CustomTint ("Custom Tint", Float) = 0
+        [HDR] _TopColor ("Top Color", Color) = (1, 1, 1, 1)
+        [HDR] _GroundColor ("Ground Color", Color) = (1, 1, 1, 1)
+        _Gradient ("Gradient", Range(0, 1)) = 1
     }
 
     SubShader
@@ -45,6 +52,10 @@ Shader "Mountains/TreeFade"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseColor;
                 float _ShadowAlphaCutoff;
+                float _CustomTint;
+                float4 _TopColor;
+                float4 _GroundColor;
+                float _Gradient;
             CBUFFER_END
 
             struct Attributes
@@ -60,6 +71,7 @@ Shader "Mountains/TreeFade"
                 float3 positionWS  : TEXCOORD0;
                 float3 normalWS    : TEXCOORD1;
                 float2 uv          : TEXCOORD2;
+                float objectY      : TEXCOORD3;
             };
 
             Varyings Vert(Attributes IN)
@@ -70,7 +82,16 @@ Shader "Mountains/TreeFade"
                 OUT.positionWS = positions.positionWS;
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.uv = IN.uv;
+                OUT.objectY = IN.positionOS.y;
                 return OUT;
+            }
+
+            // PT_Vegetation_Foliage_Shader Forward 패스와 같은 식이다 — 오브젝트 공간 높이로
+            // 밑동(Ground)에서 꼭대기(Top) 색으로 섞는다. 비율을 [-1,1]로 자르는 것까지 그대로 따른다.
+            float3 TintGradient(float objectY)
+            {
+                float t = clamp((0.5 + objectY * 1.5) * _Gradient, -1.0, 1.0);
+                return saturate(lerp(_GroundColor, _TopColor, t)).rgb;
             }
 
             half4 Frag(Varyings IN) : SV_Target
@@ -82,7 +103,8 @@ Shader "Mountains/TreeFade"
                 Light mainLight = GetMainLight(shadowCoord);
                 float NdotL = saturate(dot(normalWS, mainLight.direction));
                 float3 ambient = SampleSH(normalWS);
-                float3 lit = tex.rgb * _BaseColor.rgb * (mainLight.color * NdotL * mainLight.shadowAttenuation + ambient);
+                float3 albedo = _CustomTint > 0.5 ? TintGradient(IN.objectY) : tex.rgb;
+                float3 lit = albedo * _BaseColor.rgb * (mainLight.color * NdotL * mainLight.shadowAttenuation + ambient);
 
                 // 텍스처 알파도 곱해서 잎 가장자리가 부드럽게 옅어지게 한다 — 클립이 아니라
                 // 블렌드라서 알파가 아무리 낮아져도(페이드 진행) 완전히 사라지는 일은 없다.
@@ -118,6 +140,10 @@ Shader "Mountains/TreeFade"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseColor;
                 float _ShadowAlphaCutoff;
+                float _CustomTint;
+                float4 _TopColor;
+                float4 _GroundColor;
+                float _Gradient;
             CBUFFER_END
 
             float3 _LightDirection;

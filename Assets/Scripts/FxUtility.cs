@@ -31,5 +31,24 @@ namespace Mountains
             }
             return fx;
         }
+
+        // 생성된 FX 전체를 균일하게 키우거나 줄인다. 파티클의 기본 스케일 모드(Local)는
+        // 자기 Transform 크기만 보고 부모 크기는 무시해서, 루트만 키우면 자식 파티클은 원래
+        // 크기로 남는다 — 생성된 인스턴스의 파티클을 전부 Hierarchy로 바꿔 같이 커지게 한다.
+        // 프리팹 에셋은 건드리지 않는다.
+        public static void ApplyScale(GameObject fx, float scale)
+        {
+            if (fx == null || Mathf.Approximately(scale, 1f))
+            {
+                return;
+            }
+
+            fx.transform.localScale *= scale;
+            foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                var main = ps.main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            }
+        }
     }
 }

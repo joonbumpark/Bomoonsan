@@ -183,8 +183,8 @@ namespace Mountains
         }
 
         // 나무의 원래 커스텀 셰이더(바람 애니메이션 포함)는 건드리지 않고, 전용
-        // Mountains/TreeFade 셰이더로 된 반투명 버전을 원본 텍스처(_BaseTexture)만
-        // 물려받아 새로 만든다. 같은 원본 머티리얼을 쓰는 나무는 이 결과를 공유한다.
+        // Mountains/TreeFade 셰이더로 된 반투명 버전을 원본 텍스처(_BaseTexture)와
+        // 색 틴트 설정만 물려받아 새로 만든다. 같은 원본 머티리얼을 쓰는 나무는 이 결과를 공유한다.
         //
         // URP 기본 Lit로 만들었을 땐 메인 패스의 블렌드 알파와 그림자 캐스터의
         // 알파클립이 같은 값(텍스처알파 x _BaseColor.a)을 공유해서, 페이드 진행도가
@@ -221,6 +221,17 @@ namespace Mountains
                 ? 1f - source.GetFloat("_LeavesThickness")
                 : 0.01f;
             fadeMat.SetFloat("_ShadowAlphaCutoff", shadowCutoff);
+
+            // CUSTOM COLORS TINTING을 켠 잎(단풍나무 변형 등)은 텍스처가 아니라 높이
+            // 그라데이션 색으로 그려진다 — 텍스처만 옮기면 페이드되는 동안 원래 초록
+            // 잎으로 돌아가므로 틴트 설정도 같이 옮긴다.
+            if (source.HasProperty("_CUSTOMCOLORSTINTING") && source.GetFloat("_CUSTOMCOLORSTINTING") > 0.5f)
+            {
+                fadeMat.SetFloat("_CustomTint", 1f);
+                fadeMat.SetColor("_TopColor", source.GetColor("_TopColor"));
+                fadeMat.SetColor("_GroundColor", source.GetColor("_GroundColor"));
+                fadeMat.SetFloat("_Gradient", source.GetFloat("_Gradient"));
+            }
 
             fadeMat.enableInstancing = true;
 

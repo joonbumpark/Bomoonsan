@@ -179,6 +179,29 @@ namespace Mountains
             return true;
         }
 
+        // 식생 배치처럼 에디터 버튼 한 번으로 실행되는 도구는 이 컴포넌트의 Start()가
+        // 이미 돌았다고 보장할 수 없다 — [ExecuteAlways]의 Start()는 도메인 리로드/
+        // 컴포넌트 활성화 타이밍에 따라 에디터 모드에서 아직 한 번도 안 돌았을 수 있다.
+        // 그래서 캐시를 실제로 읽기 직전에 비어 있으면 즉시 복원(또는 필요하면 재생성)한다 —
+        // Start() 타이밍에 기대지 않고 호출 시점에 항상 올바른 상태를 보장한다.
+        public void EnsureWaterAreaCachesReady()
+        {
+            if (_waterAreaCaches != null && _waterAreaCaches.Count > 0)
+            {
+                return;
+            }
+
+            if (waterAreas == null || waterAreas.Length == 0)
+            {
+                return;
+            }
+
+            if (!TryRestoreRuntimeState())
+            {
+                Generate();
+            }
+        }
+
         // 물 표면 오브젝트(Water_i)는 씬에 저장돼 있지만, 호수별 마스크 텍스처는
         // MaterialPropertyBlock으로 넘기고 있고 이건 직렬화되지 않는다 — 재생성을
         // 건너뛰면 _MaskTex가 셰이더 기본값("black")이 되어 clip()에 전부 잘려서 물이
@@ -204,8 +227,7 @@ namespace Mountains
                     continue;
                 }
 
-                var child = _waterContainer.Find($"Water_{i}");
-                var meshRenderer = child != null ? child.GetComponent<MeshRenderer>() : null;
+                var meshRenderer = GetWaterSurfaceRenderer(i);
                 if (meshRenderer == null)
                 {
                     continue;
@@ -216,6 +238,20 @@ namespace Mountains
                 meshRenderer.SetPropertyBlock(block);
             }
         }
+
+        // i번 호수(waterAreas 순서)의 물 표면 렌더러. 폴리곤이 지형 밖이라 표면을 건너뛴 호수나
+        // 아직 생성 전이면 null. 조회만 하므로 컨테이너가 없어도 새로 만들지 않는다 —
+        // 런타임 액션(ChangeWaterColorAction)이 불러도 씬에 빈 오브젝트가 생기지 않게 한다.
+        public MeshRenderer GetWaterSurfaceRenderer(int index)
+        {
+            var container = _waterContainer != null ? _waterContainer : transform.Find(WaterContainerName);
+            var child = container != null ? container.Find(WaterSurfaceName(index)) : null;
+            return child != null ? child.GetComponent<MeshRenderer>() : null;
+        }
+
+        const string WaterContainerName = "WaterAreas";
+
+        static string WaterSurfaceName(int index) => $"Water_{index}";
 
         // GetPathMaskAt(식생 avoidPath)이 쓰는 텍셀 배열을 이미 구워둔 텍스처에서 되읽는다.
         bool TryRestorePathMaskTexels()
@@ -281,11 +317,13 @@ namespace Mountains
                     break;
                 }
 
-                _waterAreaCaches.Add(new WaterAreaCache
+                var restored = new WaterAreaCache
                 {
                     worldCurve = ToWorldSpace(curve),
                     rimHeight = _serializedWaterRimHeights[index],
-                });
+                };
+                restored.ComputeBounds();
+                _waterAreaCaches.Add(restored);
                 index++;
             }
         }
@@ -891,10 +929,10 @@ namespace Mountains
                 return;
             }
 
-            var existing = transform.Find("WaterAreas");
+            var existing = transform.Find(WaterContainerName);
             if (existing == null)
             {
-                var go = new GameObject("WaterAreas");
+                var go = new GameObject(WaterContainerName);
                 go.transform.SetParent(transform, false);
                 existing = go.transform;
             }
@@ -928,7 +966,7 @@ namespace Mountains
             waterMaskTextures[index] = maskTexture;
             BakeWaterMaskTexture(maskTexture, cache, minX, minZ, maxX, maxZ, heights, minHeight);
 
-            var go = new GameObject($"Water_{index}");
+            var go = new GameObject(WaterSurfaceName(index));
             go.transform.SetParent(_waterContainer, false);
 
             // ApplyWaterCarving의 ceiling 클램프는 호안(mask=0)에서 지형을 정확히
@@ -1313,6 +1351,11 @@ namespace Mountains
 
         // 호수 영역 안/밖 판정(폴리곤 내부면 true). 길 마스크(GetPathMaskAt)와 달리
         // 미리 구운 텍셀 배열이 아니라 카빙과 완전히 같은 폴리곤 판정을 그 자리에서 다시
+        // 식생 배치 쪽에서 "물 회피가 왜 안 걸리는지"를 진단할 때 쓴다 — 폴리곤 안/
+        // 수면 아래 판정이 전부 이 캐시가 비어 있으면 항상 false만 돌려주므로, 판정 로직
+        // 자체보다 먼저 캐시 개수부터 확인할 수 있게 노출해둔다.
+        public int WaterAreaCacheCount => _waterAreaCaches != null ? _waterAreaCaches.Count : 0;
+
         // 계산한다 — 호수는 개수가 적고 식생 배치 시에만 호출되므로 캐시할 필요가 없다.
         //
         // 깊이(수심) 값이 아니라 boolean인 이유: 예전엔 "거리 기반 깊이 마스크 > 문턱값"으로
@@ -1336,6 +1379,53 @@ namespace Mountains
                     return true;
                 }
             }
+            return false;
+        }
+
+        // 렌더링과 같은 기준으로 "이 자리가 물에 잠기는가"를 판정한다.
+        //
+        // IsInsideWaterArea(폴리곤 안/밖)만으로는 부족하다. 물 표면은 폴리곤 bbox를
+        // waterShoreBlendWidth만큼 넓힌 쿼드이고, 그보다 낮은 지형은 전부 잠겨 보인다
+        // (BuildOneWaterSurface 주석 참고) — 호안 블렌드로 파인 폴리곤 바깥 자리가 그렇다.
+        // 거기 심긴 풀이 물 아래로 비쳐 보이던 원인이다. 물 NavMesh 장애물(BuildWaterNavObstacles)이
+        // 이미 같은 이유로 높이 비교를 쓰고 있어, 식생도 같은 기준으로 맞춘다.
+        //
+        // margin: 수면보다 이만큼 위까지도 물속으로 친다. 수면에 닿을락 말락 한 자리의
+        // 풀은 물결에 묻혀 지저분해 보이므로 여유를 두는 쪽이 낫다.
+        public bool IsUnderWaterSurface(float gx, float gz, float margin = 0f)
+        {
+            if (_waterAreaCaches == null || _waterAreaCaches.Count == 0)
+            {
+                return false;
+            }
+
+            int x = Mathf.Clamp(Mathf.RoundToInt(gx), 0, width - 1);
+            int z = Mathf.Clamp(Mathf.RoundToInt(gz), 0, length - 1);
+            if (!TryGetVertexIndex(x, z, out int vertexIndex))
+            {
+                return false;
+            }
+
+            float localHeight = _cachedVertices[vertexIndex].y;
+            var worldPos = new Vector2(gx * cellSize, gz * cellSize);
+            float pad = Mathf.Max(0f, waterShoreBlendWidth);
+
+            foreach (var cache in _waterAreaCaches)
+            {
+                if (worldPos.x < cache.min.x - pad || worldPos.x > cache.max.x + pad ||
+                    worldPos.y < cache.min.y - pad || worldPos.y > cache.max.y + pad)
+                {
+                    continue;
+                }
+
+                // BuildOneWaterSurface와 정확히 같은 수면 높이.
+                float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+                if (localHeight < waterY + margin)
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -1529,6 +1619,22 @@ namespace Mountains
         {
             public List<Vector2> worldCurve; // 닫힘 세그먼트 포함
             public float rimHeight;
+
+            // 물 표면 쿼드가 덮는 범위(호안 블렌드 여유는 쓰는 쪽에서 더한다).
+            // 식생 판정이 후보마다 곡선 전체를 다시 훑지 않도록 만들 때 한 번 계산해둔다.
+            public Vector2 min;
+            public Vector2 max;
+
+            public void ComputeBounds()
+            {
+                min = new Vector2(float.MaxValue, float.MaxValue);
+                max = new Vector2(float.MinValue, float.MinValue);
+                foreach (var p in worldCurve)
+                {
+                    min = Vector2.Min(min, p);
+                    max = Vector2.Max(max, p);
+                }
+            }
         }
 
         List<WaterAreaCache> BuildWaterAreaCaches(float[] heights)
@@ -1577,6 +1683,10 @@ namespace Mountains
         void ApplyWaterCarving(float[] heights)
         {
             var caches = BuildWaterAreaCaches(heights);
+            foreach (var cache in caches)
+            {
+                cache.ComputeBounds();
+            }
             _waterAreaCaches = caches;
             if (caches.Count == 0)
             {
