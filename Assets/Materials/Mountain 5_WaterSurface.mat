@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Mountain 5_WaterSurface
+  m_Shader: {fileID: 4800000, guid: daf763d5632632344b1a7e67edbace4d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MaskTex:
+        m_Texture: {fileID: 2800000, guid: a78adb8868cccbe4a92d9d81db916e6e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AmbientStrength: 0
+    - _DetailRippleScale: 1
+    - _FoamStrength: 0.212
+    - _FoamWidth: 0.042
+    - _FresnelPower: 5.78
+    - _FresnelStrength: 0
+    - _MaskDepthRange: 8
+    - _ReflectionBase: 0.541
+    - _ReflectionRoughness: 0.344
+    - _ReflectionStrength: 0.589
+    - _RefractionStrength: 0
+    - _RefractionTint: 0
+    - _ShadowWobble: 1.07
+    - _ShoreDampingDepth: 0.8
+    - _ShoreWaveDamping: 0.25
+    - _SpecularPower: 256
+    - _SpecularRipple: 0.697
+    - _SpecularStrength: 0
+    - _WaveChoppiness: 0.679
+    - _WaveHeight: 0.414
+    - _WaveScale: 1
+    - _WaveSpeed: 0.36
+    - _WaveStrength: 0.059
+    - _WindDirection: 75
+    m_Colors:
+    - _DeepColor: {r: 0, g: 0.6603137, b: 0.6784314, a: 0.84313726}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShallowColor: {r: 0, g: 0.3584905, b: 0.35116976, a: 0.64705884}
+    - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

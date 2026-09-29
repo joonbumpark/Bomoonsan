@@ -6,8 +6,13 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  m_configObjects:
-    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    path: Assets/Scenes/TitleScene.unity
+    guid: 5d60ab364dafd8e43b15a3b9c5bc79d3
+  - enabled: 1
+    path: Assets/Scenes/Mountain 5.unity
+    guid: 03c53494df0d09242bde54abb758ee35
+  - enabled: 1
+    path: Assets/Scenes/InGameScene.unity
+    guid: 0e88cde1ef3534d74ba1eab283db0df2
+  m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 011c40ea7112cc8469fcf2253dd147cc, type: 3}
+  m_Name: Mountain 5_BirdFlockSettings
+  m_EditorClassIdentifier: 
+  spawnBirds: 1
+  birdPrefab: {fileID: 4292170788808701894, guid: db6e49a961a101a4fae060afa788aeaa,
+    type: 3}
+  modelRotationOffset: {x: 0, y: 0, z: 0}
+  spawnCount: 15
+  scaleRange: {x: 10, y: 10}
+  boundsSize: {x: 300, y: 300}
+  minAltitude: 0
+  maxAltitude: 50
+  maxSpeed: 6
+  minSpeed: 3
+  maxForce: 2
+  turnSpeed: 3
+  maxPitchAngle: 25
+  perceptionRadius: 10
+  separationRadius: 5
+  fovAngle: 300
+  alignWeight: 1
+  cohereWeight: 0.4
+  separateWeight: 3
+  boundsWeight: 1
+  flapSpeed: 6
+  flapAmplitude: 0.4
+  bodyWidthRatio: 0.15
+  phaseSpread: 1
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  shadowCastingMode: 0
+  receiveShadows: 0
+  material: {fileID: 2100000, guid: 1cc5aae396f543f0b104eca06217f601, type: 2}
