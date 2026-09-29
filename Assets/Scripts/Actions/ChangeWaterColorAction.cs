@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Mountains
 {
-    // 호수 물색(얕은 곳/깊은 곳, 선택적으로 물가 포말)을 바꾸는 액션. duration이 0이면 즉시,
+    // 호수 물색(얕은 곳/깊은 곳, 선택적으로 주변광 세기)을 바꾸는 액션. duration이 0이면 즉시,
     // 0보다 크면 지금 색에서 목표 색으로 서서히 바꾼다. 저녁 노을, 오염, 마법 연출 등에 쓴다.
     //
     // TweenMaterialAction(renderer.materials 복제)으로 하지 않고 MaterialPropertyBlock을 쓰는
@@ -19,7 +19,7 @@ namespace Mountains
     {
         static readonly int ShallowColorId = Shader.PropertyToID("_ShallowColor");
         static readonly int DeepColorId = Shader.PropertyToID("_DeepColor");
-        static readonly int FoamColorId = Shader.PropertyToID("_FoamColor");
+        static readonly int AmbientStrengthId = Shader.PropertyToID("_AmbientStrength");
 
         [Tooltip("비워두면 씬에서 지형(ProceduralTerrainMesh)을 찾아 쓴다.")]
         public ProceduralTerrainMesh terrain;
@@ -31,9 +31,13 @@ namespace Mountains
         public Color shallowColor = new Color(0.35f, 0.65f, 0.65f, 0.55f);
         [Tooltip("가운데(깊은 곳) 색. 수심에 따라 얕은 색과 섞인다.")]
         public Color deepColor = new Color(0.08f, 0.25f, 0.35f, 0.9f);
-        [Tooltip("켜두면 물가 포말 색도 함께 바꾼다.")]
-        public bool changeFoamColor;
-        public Color foamColor = Color.white;
+
+        [Header("주변광")]
+        [Tooltip("켜두면 주변광(하늘빛) 세기도 함께 바꾼다. 물 색과 그림자 안쪽이 얼마나 밝은지를 " +
+            "정한다 — 0이면 해가 직접 비추는 곳만 색이 나고, 올릴수록 그늘진 물도 밝아진다. " +
+            "밤/동굴처럼 어둡게 가거나 한낮처럼 밝게 갈 때 색과 같이 바꾼다.")]
+        public bool changeAmbient;
+        [Range(0f, 2f)] public float ambientStrength = 1f;
 
         [Header("전환")]
         [Tooltip("0이면 즉시 바꾼다.")]
@@ -48,7 +52,7 @@ namespace Mountains
             public Renderer Renderer;
             public Color Shallow;
             public Color Deep;
-            public Color Foam;
+            public float Ambient;
         }
 
         public override UniTask ExecuteAsync(TriggerContext context, CancellationToken cancellationToken)
@@ -122,7 +126,7 @@ namespace Mountains
                 Renderer = renderer,
                 Shallow = ReadColor(renderer, block, ShallowColorId),
                 Deep = ReadColor(renderer, block, DeepColorId),
-                Foam = ReadColor(renderer, block, FoamColorId),
+                Ambient = ReadFloat(renderer, block, AmbientStrengthId),
             });
         }
 
@@ -130,6 +134,11 @@ namespace Mountains
         static Color ReadColor(Renderer renderer, MaterialPropertyBlock block, int id)
         {
             return block.HasColor(id) ? block.GetColor(id) : renderer.sharedMaterial.GetColor(id);
+        }
+
+        static float ReadFloat(Renderer renderer, MaterialPropertyBlock block, int id)
+        {
+            return block.HasFloat(id) ? block.GetFloat(id) : renderer.sharedMaterial.GetFloat(id);
         }
 
         void Apply(List<WaterTarget> targets, MaterialPropertyBlock block, float t)
@@ -146,9 +155,9 @@ namespace Mountains
                 target.Renderer.GetPropertyBlock(block);
                 block.SetColor(ShallowColorId, Color.Lerp(target.Shallow, shallowColor, t));
                 block.SetColor(DeepColorId, Color.Lerp(target.Deep, deepColor, t));
-                if (changeFoamColor)
+                if (changeAmbient)
                 {
-                    block.SetColor(FoamColorId, Color.Lerp(target.Foam, foamColor, t));
+                    block.SetFloat(AmbientStrengthId, Mathf.Lerp(target.Ambient, ambientStrength, t));
                 }
                 target.Renderer.SetPropertyBlock(block);
             }

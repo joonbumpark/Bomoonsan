@@ -29,22 +29,34 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AmbientStrength: 0
-    - _FoamStrength: 0.228
-    - _FoamWidth: 0.057
-    - _FresnelPower: 8
+    - _AmbientStrength: 1
+    - _DetailRippleScale: 1
+    - _FoamStrength: 0.212
+    - _FoamWidth: 0.042
+    - _FresnelPower: 5.78
     - _FresnelStrength: 0
-    - _ReflectionBase: 0.5
-    - _ReflectionRoughness: 0.209
-    - _ReflectionStrength: 1
-    - _SpecularPower: 256
-    - _SpecularStrength: 4
-    - _WaveScale: 0.37
-    - _WaveSpeed: 1
-    - _WaveStrength: 0.045
+    - _MaskDepthRange: 8
+    - _ReflectionBase: 0.541
+    - _ReflectionRoughness: 0.344
+    - _ReflectionStrength: 0.589
+    - _RefractionStrength: 0
+    - _RefractionTint: 0
+    - _ShadowWobble: 1.07
+    - _ShoreDampingDepth: 0.8
+    - _ShoreWaveDamping: 0.25
+    - _SpecularPower: 95
+    - _SpecularRipple: 1
+    - _SpecularStrength: 0.48
+    - _WaveChoppiness: 0.679
+    - _WaveHeight: 0.414
+    - _WaveScale: 0.69
+    - _WaveSpeed: 0.36
+    - _WaveStrength: 0.158
+    - _WindDirection: 75
     m_Colors:
-    - _DeepColor: {r: 0.254717, g: 0.18644892, b: 0, a: 0.8156863}
+    - _DeepColor: {r: 0, g: 0.6603137, b: 0.6784314, a: 0.84313726}
     - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShallowColor: {r: 0.3962264, g: 0.3962264, b: 0.3962264, a: 0.85882354}
+    - _ShallowColor: {r: 0, g: 0.3584905, b: 0.35116976, a: 0.64705884}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -138,6 +138,8 @@ Material:
     - _GrassSnowHeight: 0.6
     - _HeightBlendSharpness: 0.126
     - _HeightTintStrength: 1
+    - _LakeBedDetail: 1
+    - _LakeBedStrength: 1
     - _MaxHeight: 47.691395
     - _Metallic: 0
     - _MinHeight: 0
@@ -172,6 +174,7 @@ Material:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GrassColor: {r: 0.29999998, g: 0.45, b: 0.23999995, a: 1}
+    - _LakeBedColor: {r: 0.35999998, g: 0.32999998, b: 0.23999995, a: 1}
     - _PathColor: {r: 0.6698113, g: 0.6698113, b: 0.6698113, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _RockColor: {r: 0.45882356, g: 0.30588236, b: 0.14901961, a: 1}

@@ -394,7 +394,7 @@ MonoBehaviour:
     - {fileID: 4140774597986965270, guid: 58cd8dc8c2359174baa15aa31e302c8b, type: 3}
     - {fileID: 2549054593802932585, guid: bee651b89d6b3ef48b19cfe8a4c9fa42, type: 3}
     - {fileID: 5597067459296003245, guid: e4f62d5abc5742c4eabbbf96fe54193c, type: 3}
-    count: 350
+    count: 150
     minHeight: 0
     maxHeight: 1
     minSlope: 0
@@ -412,12 +412,12 @@ MonoBehaviour:
     clusterScale: 18
     clusterSeed: 15
     alignToNormal: 1
-    uniformScaleRange: {x: 3, y: 4}
+    uniformScaleRange: {x: 2, y: 3}
     heightScaleVariation: 0.25
     colorVariation: 0.3
     colorVariantCount: 3
     castShadows: 0
-    minDistance: 1.2
+    minDistance: 0.5
     gpuInstanced: 1
   seed: 0
   waterSurfaceMargin: 0.3

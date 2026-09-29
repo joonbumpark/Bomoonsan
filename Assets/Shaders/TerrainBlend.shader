@@ -139,6 +139,7 @@ Shader "Mountains/TerrainBlend"
                 float4 vertexColor : TEXCOORD2;
                 float2 uv          : TEXCOORD3;
                 float lakeBed      : TEXCOORD4;
+                float fogFactor    : TEXCOORD5;
             };
 
             Varyings Vert(Attributes IN)
@@ -151,6 +152,7 @@ Shader "Mountains/TerrainBlend"
                 OUT.vertexColor = IN.color;
                 OUT.uv = IN.uv;
                 OUT.lakeBed = IN.uv2.x;
+                OUT.fogFactor = ComputeFogFactor(positions.positionCS.z);
                 return OUT;
             }
 
@@ -326,6 +328,8 @@ Shader "Mountains/TerrainBlend"
                 float3 rim = _RimColor.rgb * rimFactor * _RimStrength * saturate(NdotL + 0.3);
 
                 float3 finalColor = litColor + rim;
+                // 씬 안개(Lighting > Environment > Fog). 직접 만든 셰이더는 안개를 자동으로 받지 않아서 MixFog를 직접 부른다.
+                finalColor = MixFog(finalColor, IN.fogFactor);
                 return half4(finalColor, 1.0);
             }
             ENDHLSL

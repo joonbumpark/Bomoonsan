@@ -72,6 +72,7 @@ Shader "Mountains/TreeFade"
                 float3 normalWS    : TEXCOORD1;
                 float2 uv          : TEXCOORD2;
                 float objectY      : TEXCOORD3;
+                float fogFactor    : TEXCOORD4;
             };
 
             Varyings Vert(Attributes IN)
@@ -83,6 +84,7 @@ Shader "Mountains/TreeFade"
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.uv = IN.uv;
                 OUT.objectY = IN.positionOS.y;
+                OUT.fogFactor = ComputeFogFactor(positions.positionCS.z);
                 return OUT;
             }
 
@@ -109,6 +111,9 @@ Shader "Mountains/TreeFade"
                 // 텍스처 알파도 곱해서 잎 가장자리가 부드럽게 옅어지게 한다 — 클립이 아니라
                 // 블렌드라서 알파가 아무리 낮아져도(페이드 진행) 완전히 사라지는 일은 없다.
                 float alpha = tex.a * _BaseColor.a;
+                // 씬 안개(Lighting > Environment > Fog). 직접 만든 셰이더는 안개를 자동으로 받지 않아서 MixFog를 직접 부른다.
+                // 원본 나무 셰이더(Polytope)는 안개를 받으므로, 페이드 중에만 안개가 빠져 튀지 않게 맞춘다.
+                lit = MixFog(lit, IN.fogFactor);
                 return half4(lit, alpha);
             }
             ENDHLSL
