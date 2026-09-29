@@ -9,8 +9,9 @@
 //   0으로 두면 꺼짐): (1) 여러 사인파를 합쳐 노멀을 흔드는 잔물결 반짝임, (2) 그 노멀
 //   기준 Blinn-Phong 스페큘러, (3) 환경 반사(Reflection Probe가 있으면 주변 지형/나무,
 //   없으면 스카이박스 폴백), (4) 그 반사량을 시야각에 따라 키우는 프레넬(정면에서도
-//   _ReflectionBase만큼은 반사되게 바닥을 깔아둔다), (5) 수심이 0에 가까운 물가에 흰 포말 라인(정점 지오메트리는
-//   그대로 평평하게 둬서 depth-cutout 방식의 물가 정확도를 깨지 않는다 — 흔드는 건 노멀뿐).
+//   _ReflectionBase만큼은 반사되게 바닥을 깔아둔다), (5) 수심이 0에 가까운 물가에 흰 포말 라인.
+// - 같은 물결로 격자 정점의 높이도 움직인다(_WaveHeight). 물가 선은 여전히 지형의 깊이 테스트가
+//   만들므로 depth-cutout 방식의 정확도는 그대로이고, 그 선이 파도를 따라 함께 오르내린다.
 // - 라이팅은 TerrainBlend의 툰 셰이딩 없이 GetMainLight + SampleSH로만 심플하게 계산한다.
 Shader "Mountains/WaterSurface"
 {
@@ -25,6 +26,13 @@ Shader "Mountains/WaterSurface"
         _WaveScale ("Wave Scale", Float) = 0.15
         _WaveSpeed ("Wave Speed", Float) = 1.0
         _WaveStrength ("Wave Normal Strength", Range(0, 1)) = 0.15
+
+        // 같은 물결로 정점 높이도 움직인다. 물가 선이 파도를 따라 오르내려서 지형과 만나는
+        // 경계가 늘 수평으로 고정돼 보이지 않게 한다. 0이면 예전처럼 평평한 수면.
+        [Header(Wave Displacement)]
+        _WaveHeight ("Wave Height (vertex, world units)", Range(0, 1)) = 0.06
+        // 마스크 G(정규화 수심)를 월드 단위로 되돌리는 값. ProceduralTerrainMesh가 waterDepth로 채운다.
+        [HideInInspector] _MaskDepthRange ("Mask Depth Range", Float) = 8
 
         [Header(Specular Highlight)]
         _SpecularColor ("Specular Color", Color) = (1, 1, 0.95, 1)
@@ -96,6 +104,8 @@ Shader "Mountains/WaterSurface"
                 float4 _FoamColor;
                 float _FoamWidth;
                 float _FoamStrength;
+                float _WaveHeight;
+                float _MaskDepthRange;
             CBUFFER_END
 
             struct Attributes
@@ -111,32 +121,47 @@ Shader "Mountains/WaterSurface"
                 float3 positionWS  : TEXCOORD0;
                 float3 normalWS    : TEXCOORD1;
                 float2 uv          : TEXCOORD2;
+                // 이 자리 수면이 파도로 평균보다 얼마나 올라갔는지(월드 단위). 포말 위치를 같이 민다.
+                float waveOffset   : TEXCOORD3;
             };
 
-            Varyings Vert(Attributes IN)
-            {
-                Varyings OUT;
-                VertexPositionInputs positions = GetVertexPositionInputs(IN.positionOS.xyz);
-                OUT.positionHCS = positions.positionCS;
-                OUT.positionWS = positions.positionWS;
-                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
-                OUT.uv = IN.uv;
-                return OUT;
-            }
-
-            // 여러 사인파를 합쳐서(방향/주파수/속도를 서로 다르게) 평평한 물 표면의
-            // 노멀만 흔든다 — 실제 정점을 움직이지 않으므로 depth-cutout 방식의 물가
-            // 정확도는 그대로 유지되면서, 빛을 받을 때마다 반짝이는 잔물결처럼 보인다.
-            float3 RippleNormal(float2 positionXZ, float3 flatNormalWS)
+            // 방향/주파수/속도가 서로 다른 사인파 세 개. 정점 높이(Vert)와 잔물결 노멀
+            // (RippleNormal)이 같은 파를 써야 반짝임과 출렁임이 따로 놀지 않는다.
+            float3 WaveSines(float2 positionXZ)
             {
                 float2 p = positionXZ * _WaveScale;
                 float t = _Time.y * _WaveSpeed;
+                return float3(
+                    sin(p.x * 1.0 + p.y * 0.6 + t * 1.0),
+                    sin(p.x * -0.7 + p.y * 1.3 + t * 1.4),
+                    sin(p.x * 0.4 - p.y * 0.9 + t * 0.7));
+            }
 
-                float wave1 = sin(p.x * 1.0 + p.y * 0.6 + t * 1.0);
-                float wave2 = sin(p.x * -0.7 + p.y * 1.3 + t * 1.4);
-                float wave3 = sin(p.x * 0.4 - p.y * 0.9 + t * 0.7);
+            // 정점을 월드 Y로 움직인다. 물가는 원래 "불투명 지형이 깊이 테스트로 물을 가려서"
+            // 생기는 선이라, 수면이 오르내리면 그 선도 파도를 따라 들쭉날쭉 움직인다 — 물가를
+            // 따로 계산할 필요 없이 depth-cutout 방식이 그대로 유지된다. 정점은
+            // ProceduralTerrainMesh가 격자(waterSurfaceSegmentSize)로 깔아 둔다.
+            Varyings Vert(Attributes IN)
+            {
+                Varyings OUT;
+                float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                float3 waves = WaveSines(positionWS.xz);
+                float offset = _WaveHeight * (waves.x + waves.y + waves.z) / 3.0;
+                positionWS.y += offset;
 
-                float2 tilt = float2(wave1 + wave3, wave2 - wave3) * _WaveStrength;
+                OUT.positionHCS = TransformWorldToHClip(positionWS);
+                OUT.positionWS = positionWS;
+                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                OUT.uv = IN.uv;
+                OUT.waveOffset = offset;
+                return OUT;
+            }
+
+            // 평평한 물 표면의 노멀을 흔들어 빛을 받을 때마다 반짝이는 잔물결처럼 보이게 한다.
+            float3 RippleNormal(float2 positionXZ, float3 flatNormalWS)
+            {
+                float3 waves = WaveSines(positionXZ);
+                float2 tilt = float2(waves.x + waves.z, waves.y - waves.z) * _WaveStrength;
                 float3 rippled = normalize(float3(tilt.x, 1.0, tilt.y));
 
                 // flatNormalWS는 항상 (0,1,0)에 가깝지만(물 쿼드는 평평함), 혹시 있을
@@ -189,7 +214,10 @@ Shader "Mountains/WaterSurface"
 
                 // ---- 물가 포말 ----
                 // 수심(depth)이 0에 가까운 물가일수록 흰 테두리를 얹는다.
-                float foam = (1.0 - smoothstep(0.0, max(_FoamWidth, 1e-4), depth)) * _FoamStrength;
+                // 파도 마루에선 물이 그만큼 두꺼워진 것으로 보고 포말 띠를 물가 쪽으로 민다 —
+                // 포말이 제자리에 고정돼 있으면 출렁이는 물가 선과 따로 놀아 보인다.
+                float foamDepth = saturate(depth + IN.waveOffset / max(_MaskDepthRange, 1e-4));
+                float foam = (1.0 - smoothstep(0.0, max(_FoamWidth, 1e-4), foamDepth)) * _FoamStrength;
 
                 float3 finalColor = lerp(litColor, envColor, reflectAmount) + specular;
                 finalColor = lerp(finalColor, _FoamColor.rgb, saturate(foam));

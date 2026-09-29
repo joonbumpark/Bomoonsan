@@ -32,6 +32,13 @@ Shader "Mountains/TerrainBlend"
         _PathMask ("Path Mask (baked, R channel)", 2D) = "black" {}
         _Tiling ("Path Tiling", Float) = 0.1
 
+        // 호수 바닥(수면 아래로 잠긴 지형)을 칠할 색. 잠긴 정도는 ProceduralTerrainMesh가
+        // 정점 uv2.x에 구워 둔다. Detail은 바닥 텍스처의 밝고 어두운 무늬를 얼마나 남길지다.
+        [Header(Lake Bed)]
+        _LakeBedColor ("Lake Bed Color", Color) = (0.36, 0.33, 0.24, 1)
+        _LakeBedStrength ("Lake Bed Strength", Range(0, 1)) = 1
+        _LakeBedDetail ("Lake Bed Texture Detail", Range(0, 1)) = 0.6
+
         [Header(Triplanar Settings)]
         _TriplanarSharpness ("Triplanar Blend Sharpness", Range(1, 32)) = 4
 
@@ -110,6 +117,9 @@ Shader "Mountains/TerrainBlend"
                 float4 _RimColor;
                 float _RimPower;
                 float _RimStrength;
+                float4 _LakeBedColor;
+                float _LakeBedStrength;
+                float _LakeBedDetail;
             CBUFFER_END
 
             struct Attributes
@@ -118,6 +128,7 @@ Shader "Mountains/TerrainBlend"
                 float3 normalOS   : NORMAL;
                 float4 color      : COLOR; // 버텍스 컬러 없는 메시는 자동으로 흰색(1,1,1,1)이 들어온다
                 float2 uv         : TEXCOORD0; // ProceduralTerrainMesh가 채우는 평면 UV(0..1) — 길 마스크 샘플링용
+                float2 uv2        : TEXCOORD1; // x = 호수 바닥 가중치(0=물 밖, 1=충분히 잠김). 없는 메시는 0
             };
 
             struct Varyings
@@ -127,6 +138,7 @@ Shader "Mountains/TerrainBlend"
                 float3 normalWS    : TEXCOORD1;
                 float4 vertexColor : TEXCOORD2;
                 float2 uv          : TEXCOORD3;
+                float lakeBed      : TEXCOORD4;
             };
 
             Varyings Vert(Attributes IN)
@@ -138,6 +150,7 @@ Shader "Mountains/TerrainBlend"
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.vertexColor = IN.color;
                 OUT.uv = IN.uv;
+                OUT.lakeBed = IN.uv2.x;
                 return OUT;
             }
 
@@ -265,6 +278,21 @@ Shader "Mountains/TerrainBlend"
 
                     albedo = lerp(albedo, pathAlbedo, pathBlendT);
                     blendedNormal = normalize(lerp(blendedNormal, pathNormal, pathBlendT));
+                }
+
+                // ---- 호수 바닥 ----
+                // 길 다음에 얹는다 — 물에 잠긴 곳은 길이든 풀이든 바닥색으로 보여야 한다.
+                // 색을 통째로 덮으면 바닥이 단색 판처럼 보이므로, 텍스처 밝기를 그 텍스처의
+                // 평균 밝기(가장 작은 밉 = 1x1 평균색)로 나눈 "무늬"만 _LakeBedDetail만큼 남긴다.
+                float lakeBedT = saturate(IN.lakeBed) * _LakeBedStrength;
+                if (lakeBedT > 0.0)
+                {
+                    float3 flatMean = SAMPLE_TEXTURE2D_LOD(_FlatAlbedo, sampler_FlatAlbedo, float2(0.5, 0.5), 16).rgb;
+                    float3 cliffMean = SAMPLE_TEXTURE2D_LOD(_CliffAlbedo, sampler_CliffAlbedo, float2(0.5, 0.5), 16).rgb;
+                    float rawLuma = dot(lerp(flatAlbedoRaw, cliffAlbedoRaw, blendT), float3(0.299, 0.587, 0.114));
+                    float meanLuma = dot(lerp(flatMean, cliffMean, blendT), float3(0.299, 0.587, 0.114));
+                    float detail = lerp(1.0, rawLuma / max(meanLuma, 0.001), _LakeBedDetail);
+                    albedo = lerp(albedo, _LakeBedColor.rgb * detail, lakeBedT);
                 }
 
                 // ---- 툰(셀) 셰이딩 ----

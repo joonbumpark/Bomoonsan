@@ -78,6 +78,9 @@ namespace Mountains
         public int waterCurveSamplesPerSegment => settings != null ? settings.waterCurveSamplesPerSegment : 8;
         public int waterMaskResolution => settings != null ? settings.waterMaskResolution : 256;
         public float waterCliffSharpness => settings != null ? settings.waterCliffSharpness : 4f;
+        public float lakeBedFadeDepth => settings != null ? settings.lakeBedFadeDepth : 1.5f;
+        public float waterSurfaceLowering => settings != null ? settings.waterSurfaceLowering : 0.3f;
+        public float waterSurfaceSegmentSize => settings != null ? settings.waterSurfaceSegmentSize : 1f;
         public bool buildEdgeWalls => settings != null ? settings.buildEdgeWalls : true;
         public float edgeWallHeight => settings != null ? settings.edgeWallHeight : 50f;
         public float edgeWallThickness => settings != null ? settings.edgeWallThickness : 5f;
@@ -103,6 +106,9 @@ namespace Mountains
         // 필요해서 씬에 같이 저장한다(Inspector에 노출할 값은 아니라 HideInInspector).
         [SerializeField, HideInInspector] float _serializedHeightRange;
         [SerializeField, HideInInspector] float[] _serializedWaterRimHeights;
+        // 넘침 높이로 낮춘 최종 수면 높이. 카빙이 끝난 정점에서 다시 구할 수도 있지만, 복원 경로가
+        // Generate와 다른 값을 내지 않도록 계산 결과를 그대로 저장한다.
+        [SerializeField, HideInInspector] float[] _serializedWaterSurfaceHeights;
 
         float[] _pathMaskTexels;
         int _pathMaskTexelsResolution;
@@ -321,6 +327,10 @@ namespace Mountains
                 {
                     worldCurve = ToWorldSpace(curve),
                     rimHeight = _serializedWaterRimHeights[index],
+                    // 이 값이 없던 시절에 저장된 씬이면 NaN으로 두어 예전 식(림 기준)을 쓴다.
+                    surfaceHeight = _serializedWaterSurfaceHeights != null && index < _serializedWaterSurfaceHeights.Length
+                        ? _serializedWaterSurfaceHeights[index]
+                        : float.NaN,
                 };
                 restored.ComputeBounds();
                 _waterAreaCaches.Add(restored);
@@ -406,9 +416,11 @@ namespace Mountains
                 vertices[i].y -= minHeight;
             }
 
-            foreach (var cache in _waterAreaCaches)
+            for (int i = 0; i < _waterAreaCaches.Count; i++)
             {
+                var cache = _waterAreaCaches[i];
                 cache.rimHeight -= minHeight;
+                cache.surfaceHeight = ComputeWaterSurfaceHeight(i, cache, vertices);
             }
 
             int quadCountX = width - 1;
@@ -447,6 +459,7 @@ namespace Mountains
             _mesh.vertices = vertices;
             _mesh.triangles = triangles;
             _mesh.uv = uvs;
+            _mesh.uv2 = BuildLakeBedWeights(vertices);
             _mesh.RecalculateNormals();
             _mesh.RecalculateBounds();
 
@@ -475,9 +488,11 @@ namespace Mountains
             // 정점에서는 되돌려 계산할 수 없다.
             _serializedHeightRange = _heightRange;
             _serializedWaterRimHeights = new float[_waterAreaCaches.Count];
+            _serializedWaterSurfaceHeights = new float[_waterAreaCaches.Count];
             for (int i = 0; i < _waterAreaCaches.Count; i++)
             {
                 _serializedWaterRimHeights[i] = _waterAreaCaches[i].rimHeight;
+                _serializedWaterSurfaceHeights[i] = _waterAreaCaches[i].surfaceHeight;
             }
         }
 
@@ -681,6 +696,10 @@ namespace Mountains
                 return;
             }
 
+            // 마스크 G(정규화 수심)를 월드 단위로 되돌리는 값. 셰이더가 파도 높이만큼 포말 위치를
+            // 옮길 때 쓴다 — 수심을 무엇으로 나눠 구웠는지는 생성기만 알기 때문에 여기서 넘겨준다.
+            material.SetFloat("_MaskDepthRange", Mathf.Max(0.0001f, waterDepth));
+
             // waterMaskTextures는 호수 개수만큼(호수마다 자기 bbox 모양의 마스크 텍스처
             // 하나씩) 채워진다. 개수가 바뀌었으면 기존에 만들어둔 텍스처는 인덱스가 맞는
             // 만큼 재사용하고 나머지만 새로 만든다.
@@ -832,7 +851,7 @@ namespace Mountains
 
                 // BuildOneWaterSurface와 정확히 같은 물 표면 높이 — 이보다 낮게 카빙된
                 // 지형만 "실제로 물에 잠긴 자리"다.
-                float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+                float waterY = WaterSurfaceY(cache);
 
                 // 세로 범위는 지형 전체 높이(_heightRange)가 아니라 이 호수 하나가 실제로
                 // 파인 깊이(rimHeight 기준 waterDepth)만큼만 잡는다 — EdgeWalls처럼 지형
@@ -974,25 +993,8 @@ namespace Mountains
             // 물가를 따라 z-fighting(지글거림)이 생기므로, 눈에 안 띌 만큼만 아래로
             // 내려서 겹침을 없앤다 — 수심 0인 자리는 어차피 물이 안 보여야 하는 곳이라
             // 이만큼 물가가 안쪽으로 당겨지는 건 시각적으로 무의미하다.
-            float y = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
-            var mesh = new Mesh { name = $"WaterSurface_{index}" };
-            mesh.vertices = new[]
-            {
-                new Vector3(minX, y, minZ),
-                new Vector3(minX, y, maxZ),
-                new Vector3(maxX, y, maxZ),
-                new Vector3(maxX, y, minZ),
-            };
-            mesh.uv = new[]
-            {
-                new Vector2(0f, 0f),
-                new Vector2(0f, 1f),
-                new Vector2(1f, 1f),
-                new Vector2(1f, 0f),
-            };
-            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+            float y = WaterSurfaceY(cache);
+            var mesh = BuildWaterSurfaceGrid($"WaterSurface_{index}", minX, minZ, maxX, maxZ, y);
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var meshRenderer = go.AddComponent<MeshRenderer>();
@@ -1005,6 +1007,68 @@ namespace Mountains
             var block = new MaterialPropertyBlock();
             block.SetTexture("_MaskTex", maskTexture);
             meshRenderer.SetPropertyBlock(block);
+        }
+
+        // 호수 bbox를 덮는 평평한 격자. 예전엔 꼭짓점 4개짜리 쿼드였는데, 물결이 노멀만 흔들어서
+        // 지형과 만나는 물가 선이 늘 수평으로 고정돼 이질적이었다. 물 셰이더가 정점을 파도 높이만큼
+        // 올렸다 내리려면 파장보다 촘촘한 정점이 있어야 해서 격자로 나눈다(움직임은 셰이더 몫).
+        // UV는 쿼드 시절과 같은 bbox 기준 0..1이라 마스크 샘플링은 그대로다.
+        Mesh BuildWaterSurfaceGrid(string meshName, float minX, float minZ, float maxX, float maxZ, float y)
+        {
+            float segment = Mathf.Max(0.25f, waterSurfaceSegmentSize);
+            int segX = Mathf.Max(1, Mathf.CeilToInt((maxX - minX) / segment));
+            int segZ = Mathf.Max(1, Mathf.CeilToInt((maxZ - minZ) / segment));
+            int rowLength = segX + 1;
+
+            var vertices = new Vector3[rowLength * (segZ + 1)];
+            var uvs = new Vector2[vertices.Length];
+            for (int j = 0; j <= segZ; j++)
+            {
+                float v = j / (float)segZ;
+                for (int i = 0; i <= segX; i++)
+                {
+                    float u = i / (float)segX;
+                    int k = j * rowLength + i;
+                    vertices[k] = new Vector3(Mathf.Lerp(minX, maxX, u), y, Mathf.Lerp(minZ, maxZ, v));
+                    uvs[k] = new Vector2(u, v);
+                }
+            }
+
+            // 감는 방향은 쿼드 시절(0,1,2 / 0,2,3)과 같다 — 위에서 볼 때 앞면.
+            var triangles = new int[segX * segZ * 6];
+            int t = 0;
+            for (int j = 0; j < segZ; j++)
+            {
+                for (int i = 0; i < segX; i++)
+                {
+                    int a = j * rowLength + i;
+                    int b = a + rowLength;
+                    triangles[t++] = a;
+                    triangles[t++] = b;
+                    triangles[t++] = b + 1;
+                    triangles[t++] = a;
+                    triangles[t++] = b + 1;
+                    triangles[t++] = a + 1;
+                }
+            }
+
+            var mesh = new Mesh { name = meshName };
+            if (vertices.Length > 65000)
+            {
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            }
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            // 셰이더가 정점을 위아래로 움직이므로 bounds를 그만큼 넉넉히 키워 둔다 — 평평한
+            // 원래 bounds로는 파도 마루가 화면 가장자리에서 컬링돼 잘려 보일 수 있다.
+            var bounds = mesh.bounds;
+            bounds.Expand(new Vector3(0f, 2f, 0f));
+            mesh.bounds = bounds;
+            return mesh;
         }
 
         // 유니티는 앵커가 없으면 "렌더러 bounds 중심"이 프로브 박스 안에 들어와야 그 반사
@@ -1064,10 +1128,10 @@ namespace Mountains
 
             // BuildOneWaterSurface가 물 쿼드를 놓는 높이와 정확히 같아야 한다 — 이 높이보다
             // 낮게 파인 지형이 곧 "물에 잠긴 자리"다.
-            float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+            float waterY = WaterSurfaceY(cache);
             // 정점 격자(cellSize) 해상도로 카빙된 지형과 텍셀 해상도 마스크 사이의 보간
             // 오차만큼 여유를 둬서, 경계에서 한 텍셀씩 모자라 구멍이 나지 않게 한다.
-            float tolerance = Mathf.Max(0.01f, waterDepth * 0.01f);
+            float tolerance = WaterMaskTolerance;
 
             var coverage = new bool[resolution * resolution];
             var belowWater = new bool[resolution * resolution];
@@ -1086,7 +1150,10 @@ namespace Mountains
                     // 깊이는 워핑하지 않은 실좌표에서 읽는다 — ApplyWaterCarving이
                     // heights[i]를 갱신한 것도 정점의 실좌표 기준이었다.
                     float carvedHeight = SampleHeightsBilinear(heights, worldPos.x / cellSize, worldPos.y / cellSize) - minHeight;
-                    depths[i] = Mathf.Clamp01((cache.rimHeight - carvedHeight) / depthRange);
+                    // 수심은 림이 아니라 실제 수면 기준이다 — 수면을 림보다 낮추면(넘침 보정,
+                    // waterSurfaceLowering) 림 기준 수심은 물가에서도 0이 안 돼서, 수심 0 근처에
+                    // 그리는 포말이 수면 위(= 지형 속)로 올라가 안 보였다.
+                    depths[i] = Mathf.Clamp01((waterY - carvedHeight) / depthRange);
                     belowWater[i] = carvedHeight < waterY + tolerance;
 
                     // 폴리곤 안쪽(카빙과 동일하게 워핑된 좌표로 판정)은 무조건 덮는다 —
@@ -1412,14 +1479,13 @@ namespace Mountains
 
             foreach (var cache in _waterAreaCaches)
             {
-                if (worldPos.x < cache.min.x - pad || worldPos.x > cache.max.x + pad ||
-                    worldPos.y < cache.min.y - pad || worldPos.y > cache.max.y + pad)
+                if (!cache.SurfaceQuadCovers(worldPos.x, worldPos.y, pad))
                 {
                     continue;
                 }
 
                 // BuildOneWaterSurface와 정확히 같은 수면 높이.
-                float waterY = cache.rimHeight - Mathf.Max(0.01f, waterDepth * 0.005f);
+                float waterY = WaterSurfaceY(cache);
                 if (localHeight < waterY + margin)
                 {
                     return true;
@@ -1611,6 +1677,252 @@ namespace Mountains
             }
         }
 
+        // 호수 수면의 로컬 Y. 물 표면/식생/NavMesh/바닥색이 모두 이 높이를 기준으로 "물에
+        // 잠겼는가"를 판정해야 서로 어긋나지 않는다. 값은 Generate가 ComputeWaterSurfaceHeight로
+        // 정하고, 그 값이 없는 예전 데이터만 림 기준 식으로 대신한다.
+        float WaterSurfaceY(WaterAreaCache cache)
+        {
+            return float.IsNaN(cache.surfaceHeight) ? cache.rimHeight - WaterSurfaceOffset : cache.surfaceHeight;
+        }
+
+        // 림(rimHeight)과 정확히 같은 높이에 두면 호안에서 rimHeight로 깎인 지형과 같은 평면이
+        // 되어 z-fighting이 생기므로 눈에 안 띌 만큼 내린다(BuildOneWaterSurface 주석 참고).
+        float WaterSurfaceOffset => Mathf.Max(0.01f, waterDepth * 0.005f);
+
+        // 물 마스크가 "물에 잠긴 텍셀"로 이어 붙일 때 주는 여유. 수면을 넘침 높이보다 최소 이만큼
+        // 더 낮춰야 마스크 확장이 넘치는 지점을 타고 호수 밖으로 번지지 않는다.
+        float WaterMaskTolerance => Mathf.Max(0.01f, waterDepth * 0.01f);
+
+        // 수면 = min(림, 넘침 높이)보다 살짝 아래, 거기서 waterSurfaceLowering만큼 더 아래.
+        //
+        // 림은 "매끈한 원래 경계선"에서 잰 최저 높이인데, 카빙은 waterEdgeJitter로 흔든 경계로
+        // 파내서 원래 경계선 근처까지 깎아 버릴 수 있다. 그러면 호수를 둘러싼 벽에 림보다 낮은
+        // 틈이 생기고, 물 마스크가 그 틈을 타고 호수 밖 저지대까지 번져 물이 땅 위에 얇게 떠
+        // 보였다(Mountain 5에서 넘침 높이가 수면보다 0.14 낮았다). 카빙이 끝난 실제 지형에서
+        // 물이 넘치는 높이를 구해 수면을 그 아래로 두면, 물이 호수 밖으로 새는 일이 구조적으로 없다.
+        float ComputeWaterSurfaceHeight(int index, WaterAreaCache cache, Vector3[] vertices)
+        {
+            float fromRim = cache.rimHeight - WaterSurfaceOffset;
+            float spill = FindSpillHeight(cache, vertices, out int spillVertex);
+            float fromSpill = spill - WaterMaskTolerance - WaterSurfaceOffset;
+            if (fromSpill < fromRim)
+            {
+                Debug.Log($"[ProceduralTerrainMesh] 호수 {index}: 물이 넘치는 지점(격자 {spillVertex % width}, " +
+                    $"{spillVertex / width})이 림보다 낮아 수면을 {fromRim - fromSpill:0.00}만큼 낮췄습니다. " +
+                    "원래 수면을 쓰려면 그 근처로 호수 경계점을 옮기거나 경계를 넓히세요.");
+            }
+
+            // 추가 하강은 넘침 보정과 별개로 항상 적용한다 — 수면이 내려가기만 하므로 누수가
+            // 다시 생길 일은 없다.
+            return Mathf.Min(fromRim, fromSpill) - waterSurfaceLowering;
+        }
+
+        // 호수 안쪽(카빙과 같은 워핑 좌표로 판정한 정점)에서 출발해 "호수 밖" 정점까지 가는 경로
+        // 중, 지나는 최고 높이가 가장 낮은 경로의 그 높이(= 물이 차오르다 처음 넘치는 높이)를
+        // 구한다. 최고 높이를 비용으로 하는 다익스트라(priority flood)라, 처음 꺼낸 "호수 밖"
+        // 정점의 값이 곧 답이다.
+        //
+        // "호수 밖" = 폴리곤 밖이면서 8방향 이웃에도 안쪽 정점이 없는 정점. 카빙은 폴리곤 안만
+        // 건드리므로 그보다 한 칸 이상 떨어진 땅은 원래 지형이고, 거기 물이 차면 누수다.
+        // 이웃은 8방향으로 본다 — 물 마스크는 텍셀 단위라 격자 칸을 대각선으로 가로지를 수 있어,
+        // 4방향만 보면 대각선 틈을 놓쳐 넘침 높이를 실제보다 높게 잡는다.
+        float FindSpillHeight(WaterAreaCache cache, Vector3[] vertices, out int spillVertex)
+        {
+            spillVertex = -1;
+            int count = width * length;
+            var inside = new bool[count];
+            bool anyInside = false;
+            for (int z = 0; z < length; z++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    var worldPos = new Vector2(x * cellSize, z * cellSize);
+                    if (IsPointInPolygon(WarpForWaterMask(worldPos), cache.worldCurve))
+                    {
+                        inside[z * width + x] = true;
+                        anyInside = true;
+                    }
+                }
+            }
+
+            if (!anyInside)
+            {
+                return float.PositiveInfinity;
+            }
+
+            var best = new float[count];
+            var heap = new MinHeap(count);
+            for (int i = 0; i < count; i++)
+            {
+                best[i] = float.PositiveInfinity;
+                if (inside[i])
+                {
+                    best[i] = vertices[i].y;
+                    heap.Push(vertices[i].y, i);
+                }
+            }
+
+            while (heap.Count > 0)
+            {
+                heap.Pop(out float level, out int i);
+                if (level > best[i])
+                {
+                    continue;
+                }
+
+                int x = i % width;
+                int z = i / width;
+                if (!inside[i] && !HasInsideNeighbor(inside, x, z))
+                {
+                    spillVertex = i;
+                    return level;
+                }
+
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx;
+                        int nz = z + dz;
+                        if ((dx == 0 && dz == 0) || nx < 0 || nx >= width || nz < 0 || nz >= length)
+                        {
+                            continue;
+                        }
+
+                        int n = nz * width + nx;
+                        float nextLevel = Mathf.Max(level, vertices[n].y);
+                        if (nextLevel < best[n])
+                        {
+                            best[n] = nextLevel;
+                            heap.Push(nextLevel, n);
+                        }
+                    }
+                }
+            }
+
+            // 지형 전체가 호수 안쪽이라 밖으로 나갈 곳이 없다 — 넘칠 일이 없다.
+            return float.PositiveInfinity;
+        }
+
+        bool HasInsideNeighbor(bool[] inside, int x, int z)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    if (nx >= 0 && nx < width && nz >= 0 && nz < length && inside[nz * width + nx])
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // FindSpillHeight용 최소 힙. .NET Standard 2.1에는 PriorityQueue가 없다.
+        sealed class MinHeap
+        {
+            readonly List<float> _keys;
+            readonly List<int> _values;
+
+            public MinHeap(int capacity)
+            {
+                _keys = new List<float>(capacity);
+                _values = new List<int>(capacity);
+            }
+
+            public int Count => _keys.Count;
+
+            public void Push(float key, int value)
+            {
+                _keys.Add(key);
+                _values.Add(value);
+                int i = _keys.Count - 1;
+                while (i > 0)
+                {
+                    int parent = (i - 1) / 2;
+                    if (_keys[parent] <= _keys[i])
+                    {
+                        break;
+                    }
+                    Swap(i, parent);
+                    i = parent;
+                }
+            }
+
+            public void Pop(out float key, out int value)
+            {
+                key = _keys[0];
+                value = _values[0];
+                int last = _keys.Count - 1;
+                _keys[0] = _keys[last];
+                _values[0] = _values[last];
+                _keys.RemoveAt(last);
+                _values.RemoveAt(last);
+
+                int i = 0;
+                while (true)
+                {
+                    int left = i * 2 + 1;
+                    if (left >= _keys.Count)
+                    {
+                        break;
+                    }
+                    int right = left + 1;
+                    int smallest = right < _keys.Count && _keys[right] < _keys[left] ? right : left;
+                    if (_keys[i] <= _keys[smallest])
+                    {
+                        break;
+                    }
+                    Swap(i, smallest);
+                    i = smallest;
+                }
+            }
+
+            void Swap(int a, int b)
+            {
+                (_keys[a], _keys[b]) = (_keys[b], _keys[a]);
+                (_values[a], _values[b]) = (_values[b], _values[a]);
+            }
+        }
+
+        // 정점마다 "호수 바닥색을 얼마나 입힐지"(0=물 밖, 1=lakeBedFadeDepth 이상 잠김)를 구해
+        // uv2.x에 담는다. TerrainBlend가 이 값으로 _LakeBedColor를 섞는다.
+        //
+        // 길 마스크처럼 텍스처로 굽지 않는 이유: 호수 바닥은 카빙으로 정점 높이 자체가 파인
+        // 자리라 정점 해상도(cellSize)로도 파인 모양과 정확히 맞고, 메시에 같이 저장돼서 에셋이
+        // 따로 늘지 않는다. 판정 기준은 IsUnderWaterSurface와 같다(수면 쿼드 범위 안 + 수면보다 낮음).
+        Vector2[] BuildLakeBedWeights(Vector3[] vertices)
+        {
+            var weights = new Vector2[vertices.Length];
+            if (_waterAreaCaches == null || _waterAreaCaches.Count == 0)
+            {
+                return weights;
+            }
+
+            float fadeDepth = Mathf.Max(0.01f, lakeBedFadeDepth);
+            float pad = Mathf.Max(0f, waterShoreBlendWidth);
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 v = vertices[i];
+                float weight = 0f;
+                foreach (var cache in _waterAreaCaches)
+                {
+                    if (!cache.SurfaceQuadCovers(v.x, v.z, pad))
+                    {
+                        continue;
+                    }
+
+                    float depth = WaterSurfaceY(cache) - v.y;
+                    weight = Mathf.Max(weight, Mathf.Clamp01(depth / fadeDepth));
+                }
+                weights[i] = new Vector2(weight, 0f);
+            }
+            return weights;
+        }
+
         // 호수 하나(닫힌 폴리곤 곡선 + 그 곡선의 림 높이)를 들고 있는 캐시. rimHeight는
         // ApplyWaterCarving이 heights를 건드리기 전에 원래 지형에서 샘플링한 값이라, 아직
         // min-shift(최저점을 y=0으로 맞추는 것) 적용 전이다 — Generate()가 min-shift를 끝낸
@@ -1619,11 +1931,21 @@ namespace Mountains
         {
             public List<Vector2> worldCurve; // 닫힘 세그먼트 포함
             public float rimHeight;
+            // 최종 수면 높이(min-shift 후 로컬 Y). Generate가 넘침 높이까지 반영해 채운다.
+            // NaN이면 아직 없다는 뜻이다(WaterSurfaceY가 림 기준 식으로 대신한다).
+            public float surfaceHeight = float.NaN;
 
             // 물 표면 쿼드가 덮는 범위(호안 블렌드 여유는 쓰는 쪽에서 더한다).
             // 식생 판정이 후보마다 곡선 전체를 다시 훑지 않도록 만들 때 한 번 계산해둔다.
             public Vector2 min;
             public Vector2 max;
+
+            // 물 표면 쿼드(폴리곤 bbox를 호안 여유 pad만큼 넓힌 것)가 이 XZ를 덮는가. 쿼드 밖은
+            // 지형이 아무리 낮아도 물이 그려지지 않으므로 "잠겼는가" 판정에서 먼저 걸러낸다.
+            public bool SurfaceQuadCovers(float x, float z, float pad)
+            {
+                return x >= min.x - pad && x <= max.x + pad && z >= min.y - pad && z <= max.y + pad;
+            }
 
             public void ComputeBounds()
             {

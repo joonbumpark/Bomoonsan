@@ -68,6 +68,17 @@ namespace Mountains
             "커질수록 호안 근처(좁은 폭)에서만 급격히 깊어진 뒤 안쪽은 평평한 바닥으로 남는다 " +
             "— 절벽처럼 가파른 호안 + 평평한 바닥을 원하면 값을 높인다.")]
         [Min(1f)] public float waterCliffSharpness = 4f;
+        [Tooltip("호수 바닥색(TerrainBlend의 Lake Bed Color)이 수면에서 이 깊이(월드 단위)만큼 내려가면 " +
+            "완전히 입혀진다. 작을수록 물가 경계가 또렷하고, 클수록 물가에서 서서히 물든다. " +
+            "지형을 다시 생성해야 반영된다(정점 데이터에 구워진다).")]
+        [Min(0.01f)] public float lakeBedFadeDepth = 1.5f;
+        [Tooltip("수면을 자동으로 정한 높이(림/넘침 높이 기준)에서 이만큼(월드 단위) 더 내린다. " +
+            "물가에 물이 얇게 깔려 지형보다 떠 보이면 올린다. 지형을 다시 생성해야 반영된다.")]
+        [Min(0f)] public float waterSurfaceLowering = 0.3f;
+        [Tooltip("물 표면 메시의 격자 간격(월드 단위). 물 셰이더가 정점을 파도 높이만큼 움직이는데, " +
+            "정점이 이보다 성기면 파도 모양이 안 나오고 물가 경계도 직선으로 남는다. 물결 파장" +
+            "(약 2π / Wave Scale)의 1/4 이하가 적당하다. 지형을 다시 생성해야 반영된다.")]
+        [Min(0.25f)] public float waterSurfaceSegmentSize = 1f;
 
         [Header("Edge Walls")]
         [Tooltip("지형 바깥 테두리에 보이지 않는 벽(BoxCollider)을 세워서 플레이어가 " +

@@ -11,6 +11,10 @@ namespace Mountains
     public class ScatterGroup
     {
         public string label = "Grass";
+        [Tooltip("꺼두면 이 그룹은 배치를 건너뛴다(개체 0개). count는 그대로 남아있으니 " +
+            "다시 켜고 재배치하면 원래대로 돌아온다 — 값을 0으로 바꾸거나 그룹을 지우지 " +
+            "않고도 실험적으로 껐다 켰다 해볼 수 있다.")]
+        public bool enabled = true;
         public GameObject[] prefabs;
         [Min(0)] public int count = 1000;
 
@@ -24,6 +28,12 @@ namespace Mountains
         public bool avoidPath = true;
         [Tooltip("켜두면 호수(Water Area)로 판정된 자리에는 배치하지 않는다.")]
         public bool avoidWater = true;
+        [Tooltip("켜두면 반대로 물속(수면보다 낮은 호수 바닥)에만 배치한다. 호수 바닥 돌/수초용 — " +
+            "켜져 있으면 avoidWater는 무시된다.")]
+        public bool onlyInWater = false;
+        [Tooltip("onlyInWater일 때 수면보다 이만큼(월드 단위) 높은 물가까지 물속으로 친다. " +
+            "0이면 물에 잠긴 자리에만, 올리면 물가 둔치까지 이어서 깔린다.")]
+        [Min(0f)] public float waterEdgeMargin = 0.5f;
         [Tooltip("켜두면 이 그룹의 개체가 카메라와 플레이어 사이를 가릴 때 " +
             "TreeViewOcclusionFader가 반투명하게 페이드시킨다. 예전엔 fader 쪽에 라벨 목록을 " +
             "따로 두는 방식이라 Tree2 같은 그룹을 추가하면 양쪽을 다 맞춰야 했고, 한쪽을 " +
@@ -110,8 +120,15 @@ namespace Mountains
         public ScatterGroup[] groups => settings != null ? settings.groups : System.Array.Empty<ScatterGroup>();
         public int seed => settings != null ? settings.seed : 0;
         public float densityMultiplier => settings != null ? settings.densityMultiplier : 1f;
+        public float waterSurfaceMargin => settings != null ? settings.waterSurfaceMargin : 0.3f;
 
         Transform _container;
+
+        // 물 회피가 실제로 걸리는지 확인하기 위한 집계. 조건이 겹쳐 있어(폴리곤/수면 높이)
+        // 눈으로는 어느 쪽이 걸렀는지 알 수 없어서 따로 센다.
+        int _rejectedInsidePolygon;
+        int _rejectedUnderSurface;
+        int _waterAreaCount;
 
         // gpuInstanced 그룹의 렌더 데이터. Scatter()가 채우고 Update()가 매 프레임 그린다.
         readonly Dictionary<ScatterGroup, GpuInstancedGroup> _gpuGroups = new Dictionary<ScatterGroup, GpuInstancedGroup>();
@@ -280,6 +297,11 @@ namespace Mountains
                 return;
             }
 
+            // 지형의 Start()가 이 시점까지 아직 안 돌았을 수 있다 — 그러면 물 회피 캐시가
+            // 비어 있어 avoidWater 판정이 항상 false만 돌려준다(물 위에 나무가 자라던 원인).
+            // 배치 직전에 캐시가 준비됐는지 직접 확인하고 필요하면 복원시킨다.
+            terrain.EnsureWaterAreaCachesReady();
+
             FindOrCreateContainer();
             ClearInstances();
             _gpuGroups.Clear();
@@ -291,18 +313,52 @@ namespace Mountains
             // 전에 한 번에 처리한다. (에디터 배치 기준 — 빌드에서는 이미 등록된 상태다.)
             foreach (var group in groups)
             {
-                if (group != null)
+                if (group != null && group.enabled)
                 {
                     EnsureTagExists(group.instanceTag);
                 }
             }
 #endif
 
+            _rejectedInsidePolygon = 0;
+            _rejectedUnderSurface = 0;
+            _waterAreaCount = terrain.waterAreas != null ? terrain.waterAreas.Length : 0;
+
             var rng = new System.Random(seed);
             foreach (var group in groups)
             {
                 ScatterGroupInternal(group, rng);
             }
+
+            LogWaterAvoidance();
+        }
+
+        // 물 회피가 실제로 동작했는지 한눈에 보여준다. 호수가 있는데 제외 수가 0이면
+        // 회피가 전혀 안 걸린 것이므로(캐시가 비었거나 avoidWater가 꺼짐) 바로 알 수 있다.
+        void LogWaterAvoidance()
+        {
+            if (_waterAreaCount == 0)
+            {
+                return;
+            }
+
+            int total = _rejectedInsidePolygon + _rejectedUnderSurface;
+            int cacheCount = terrain.WaterAreaCacheCount;
+            string message = $"[VegetationScatter] 물 회피: 호수 {_waterAreaCount}개 " +
+                $"(캐시 {cacheCount}개), 제외 {total}개 (폴리곤 안 {_rejectedInsidePolygon} / 수면 아래 {_rejectedUnderSurface})";
+
+            if (total == 0)
+            {
+                // 캐시가 0개면 판정 로직과 무관하게 항상 false만 돌려준다 — 지형을
+                // 다시 생성(또는 Start()가 제대로 복원)해야 하는 경우다. 캐시는 있는데도
+                // 0개면 avoidWater가 꺼져 있거나 판정 기준(margin 등) 문제다.
+                Debug.LogWarning(message + (cacheCount == 0
+                    ? " — 캐시가 비어 있습니다. 지형을 다시 생성해야 호수 정보가 복원됩니다."
+                    : " — 캐시는 있는데 한 번도 걸리지 않았습니다. 그룹의 avoidWater가 꺼져 있는지 확인하세요."));
+                return;
+            }
+
+            Debug.Log(message);
         }
 
 #if UNITY_EDITOR
@@ -389,6 +445,11 @@ namespace Mountains
 
         void ScatterGroupInternal(ScatterGroup group, System.Random rng)
         {
+            if (!group.enabled)
+            {
+                return;
+            }
+
             int targetCount = Mathf.RoundToInt(group.count * densityMultiplier);
             if (group.prefabs == null || group.prefabs.Length == 0 || targetCount <= 0)
             {
@@ -527,7 +588,11 @@ namespace Mountains
             int ix = Mathf.Clamp(Mathf.RoundToInt(gx), 0, terrain.width - 1);
             int iz = Mathf.Clamp(Mathf.RoundToInt(gz), 0, terrain.length - 1);
 
-            float normalizedHeight = terrain.GetNormalizedHeightAt(ix, iz);
+            // 호수 카빙은 원래 지형의 최저점보다 더 깊이 팔 수 있어서 호수 바닥은 정규화 높이가
+            // 음수로 나온다(Mountain 5에서 최저 -0.04). 그대로 비교하면 minHeight 0인 그룹이
+            // 호수 가장 깊은 곳을 전부 거부해 LakeRock이 바닥에 안 깔렸다 — "0=최저"라는 범위
+            // 정의에 맞게 최저점 아래는 0으로 본다.
+            float normalizedHeight = Mathf.Max(0f, terrain.GetNormalizedHeightAt(ix, iz));
             if (normalizedHeight < group.minHeight || normalizedHeight > group.maxHeight)
             {
                 return false;
@@ -546,13 +611,35 @@ namespace Mountains
                 return false;
             }
 
-            // 길과 달리 "깊이" 마스크가 아니라 순수 안/밖 판정을 쓴다 — 호수가
-            // waterShoreBlendWidth보다 작으면 내부에서도 마스크 값이 거의 0에 머물러
-            // 문턱값(threshold) 기반 회피가 걸리지 않는 경우가 있었다(작은 호수 위에도
-            // 나무가 생기던 버그). 폴리곤 안쪽이면 크기와 무관하게 항상 피한다.
-            if (group.avoidWater && terrain.IsInsideWaterArea(gx, gz))
+            // 두 가지를 함께 본다.
+            //
+            // (1) 폴리곤 안쪽: 호수가 waterShoreBlendWidth보다 작으면 내부에서도 마스크
+            //     값이 거의 0에 머물러 문턱값 기반 회피가 안 걸리는 경우가 있었다(작은
+            //     호수 위에 나무가 생기던 버그). 크기와 무관하게 항상 피한다.
+            // (2) 수면보다 낮은 자리: 물 표면은 폴리곤 bbox를 호안 블렌드 폭만큼 넓힌
+            //     쿼드라, 폴리곤 바깥이어도 카빙으로 파인 곳은 물에 잠겨 보인다. 폴리곤
+            //     판정만 쓰면 그 자리의 풀이 물 아래로 비쳐 보인다.
+            // 물속 전용 그룹은 렌더링과 같은 기준(수면 높이 비교)만 본다 — 폴리곤 판정은 호안
+            // 블렌드로 파인 폴리곤 바깥의 잠긴 자리를 놓치고, 물가 여유(margin)도 줄 수 없다.
+            if (group.onlyInWater)
             {
-                return false;
+                if (!terrain.IsUnderWaterSurface(gx, gz, group.waterEdgeMargin))
+                {
+                    return false;
+                }
+            }
+            else if (group.avoidWater)
+            {
+                if (terrain.IsInsideWaterArea(gx, gz))
+                {
+                    _rejectedInsidePolygon++;
+                    return false;
+                }
+                if (terrain.IsUnderWaterSurface(gx, gz, waterSurfaceMargin))
+                {
+                    _rejectedUnderSurface++;
+                    return false;
+                }
             }
 
             if (!PassesClusterMask(group, gx, gz, rng))
