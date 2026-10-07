@@ -87,7 +87,7 @@ Shader "Mountains/WaterSurface"
             Cull Back
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.5
             #pragma vertex Vert
             #pragma fragment Frag
 

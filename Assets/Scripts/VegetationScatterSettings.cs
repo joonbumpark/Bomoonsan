@@ -26,5 +26,13 @@ namespace Mountains
         [Min(1f)] public float instancingChunkSize = 25f;
         [Tooltip("gpuInstanced 그룹을 카메라로부터 이 거리(월드 단위)까지만 그린다.")]
         [Min(0f)] public float instancingMaxDrawDistance = 150f;
+        [Tooltip("모바일 기기(Application.isMobilePlatform)에서 쓰는 그리기 거리. 수만 개짜리 풀은 잎 모양을 " +
+            "알파로 잘라내 겹겹이 그려져(오버드로우) GPU 부담과 발열이 크다 — 모바일에선 가까운 것만 그린다. " +
+            "GameManager가 안개 끝도 이 거리에 맞춰 당겨서 풀이 끊기는 경계를 가린다.")]
+        [Min(0f)] public float mobileInstancingMaxDrawDistance = 80f;
+
+        // 안개 끝을 식생 그리기 거리보다 이만큼 넘겨 잡는다 — 그 거리에서 이미 안개가 거의 다 덮여
+        // 풀/돌이 끊기는 경계가 안 보이게. FogSetup(에디터 메뉴)과 모바일 런타임 조정이 같은 값을 쓴다.
+        public const float FogEndMarginOverDrawDistance = 1.05f;
     }
 }

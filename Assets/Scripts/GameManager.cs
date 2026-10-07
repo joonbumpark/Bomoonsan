@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Mountains
 {
@@ -28,20 +30,66 @@ namespace Mountains
             public Vector3 followOffset;
         }
 
+        [Header("모바일 성능(발열)")]
+        [Tooltip("모바일 기기의 목표 프레임. 60이면 CPU/GPU가 쉬지 않고 돌아 발열이 크다 — 천천히 걷는 " +
+            "게임이라 30으로도 충분하다. 0 이하면 손대지 않는다.")]
+        public int mobileTargetFrameRate = 30;
+        [Tooltip("모바일에서 Bloom을 끈다. 모바일 품질 단계(URP-Mobile)는 HDR이 꺼져 있어 색이 1에서 잘리는데, " +
+            "Bloom 임계값이 1이라 거의 아무것도 번지지 않으면서 축소/확대 패스 비용만 든다.")]
+        public bool disableBloomOnMobile = true;
+
         [Header("NPC 스폰 (테스트용)")]
         [Tooltip("여러 개 등록해서 한 번에 여러 NPC를 스폰할 수 있다.")]
         public NpcSpawnEntry[] npcSpawns = new NpcSpawnEntry[0];
 
         void Awake()
         {
-
-#if !UNITY_EDITOR && UNITY_ANDROID
-            Application.targetFrameRate = 60;
-#endif
-
             if (Terrain == null)
             {
                 Terrain = FindFirstObjectByType<ProceduralTerrainMesh>();
+            }
+
+            // 에디터에서는 false라 Play 모드 화면은 그대로다(빌드한 기기에서만 적용).
+            if (Application.isMobilePlatform)
+            {
+                ApplyMobilePerformanceSettings();
+            }
+        }
+
+        // 렌더 해상도/HDR/그림자는 모바일 품질 단계의 URP-Mobile 에셋이 정하고, 에셋으로 못 정하는
+        // 나머지(프레임, 씬 볼륨의 Bloom, 식생 거리에 맞춘 안개)를 여기서 맞춘다.
+        void ApplyMobilePerformanceSettings()
+        {
+            if (mobileTargetFrameRate > 0)
+            {
+                Application.targetFrameRate = mobileTargetFrameRate;
+            }
+
+            if (disableBloomOnMobile)
+            {
+                // volume.profile은 그 볼륨 전용 복제본을 만든다 — sharedProfile(에셋)을 건드리지 않는다.
+                foreach (var volume in FindObjectsByType<Volume>(FindObjectsSortMode.None))
+                {
+                    if (volume.sharedProfile != null && volume.profile.TryGet<Bloom>(out var bloom))
+                    {
+                        bloom.active = false;
+                    }
+                }
+            }
+
+            // 모바일은 풀/돌을 더 가까이까지만 그린다 — 안개 끝을 그 거리로 당겨야 끊기는 경계가 안 보인다.
+            // 시작:끝 비율은 FogSetup(에디터 메뉴)이 잡은 값을 그대로 유지한다.
+            var scatter = FindFirstObjectByType<VegetationScatter>();
+            if (RenderSettings.fog && RenderSettings.fogMode == FogMode.Linear && scatter != null)
+            {
+                float end = RenderSettings.fogEndDistance;
+                float mobileEnd = scatter.MaxDrawDistance * VegetationScatterSettings.FogEndMarginOverDrawDistance;
+                if (mobileEnd < end && end > 0f)
+                {
+                    float startRatio = RenderSettings.fogStartDistance / end;
+                    RenderSettings.fogEndDistance = mobileEnd;
+                    RenderSettings.fogStartDistance = mobileEnd * startRatio;
+                }
             }
         }
 
@@ -106,7 +154,7 @@ namespace Mountains
                     ? entry.spawnPoint.position
                     : playerSpawnPoint != null ? playerSpawnPoint.position
                     : defaultSpawnPos + Vector3.right * (5f + i * 2f);
-                var npcGo = CharacterManager.Instance.CreateNpc(entry.characterData, spawnPos, Quaternion.identity);
+                var npcGo = CharacterManager.Instance.CreateNpc(entry.characterData, spawnPos);
 
                 var follower = npcGo != null ? npcGo.GetComponent<NpcFollower>() : null;
                 if (follower != null)

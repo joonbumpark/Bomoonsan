@@ -73,7 +73,7 @@ Shader "Mountains/TerrainBlend"
             Tags { "LightMode" = "UniversalForward" }
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.5
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma shader_feature_local _TOON_SHADING_ON
@@ -346,7 +346,7 @@ Shader "Mountains/TerrainBlend"
             ColorMask 0
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.5
             #pragma vertex ShadowVert
             #pragma fragment ShadowFrag
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW

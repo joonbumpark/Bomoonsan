@@ -17,16 +17,16 @@ MonoBehaviour:
   - prefab: {fileID: 2206852426022253465, guid: de500f6b90f89bc4c87a6585b2dea01a,
       type: 3}
     weight: 2
-    scaleRange: {x: 1, y: 1.5}
+    scaleRange: {x: 1, y: 1}
     speedMultiplier: 1
     modelRotationOffset: {x: 0, y: 90, z: 0}
   - prefab: {fileID: 1937588542411740048, guid: a05072560c3476b4cb8dddf22f697392,
       type: 3}
     weight: 1
-    scaleRange: {x: 1, y: 1.5}
+    scaleRange: {x: 1, y: 1}
     speedMultiplier: 1
     modelRotationOffset: {x: 0, y: 90, z: 0}
-  spawnCount: 200
+  spawnCount: 100
   boundsSize: {x: 20, y: 60}
   useTransformHeight: 1
   waterHeight: 0

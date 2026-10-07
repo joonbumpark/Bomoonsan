@@ -120,8 +120,7 @@ namespace Mountains
         public ScatterGroup[] groups => settings != null ? settings.groups : System.Array.Empty<ScatterGroup>();
         public int seed => settings != null ? settings.seed : 0;
         public float densityMultiplier => settings != null ? settings.densityMultiplier : 1f;
-        //public float waterSurfaceMargin => settings != null ? settings.waterSurfaceMargin : 0.3f;
-        public float waterSurfaceMargin => 0.3f;
+        public float waterSurfaceMargin => settings != null ? settings.waterSurfaceMargin : 0.3f;
 
         Transform _container;
 
@@ -275,11 +274,26 @@ namespace Mountains
             }
 
             Vector3 camPos = _mainCamera.transform.position;
-            float maxDrawDistance = settings != null ? settings.instancingMaxDrawDistance : 150f;
+            float maxDrawDistance = MaxDrawDistance;
 
             foreach (var gpuGroup in _gpuGroups.Values)
             {
                 gpuGroup.Draw(camPos, maxDrawDistance);
+            }
+        }
+
+        // gpuInstanced 그룹을 그리는 최대 거리. 모바일은 발열 때문에 따로 짧게 잡는다.
+        public float MaxDrawDistance
+        {
+            get
+            {
+                if (settings == null)
+                {
+                    return 150f;
+                }
+                return Application.isMobilePlatform
+                    ? settings.mobileInstancingMaxDrawDistance
+                    : settings.instancingMaxDrawDistance;
             }
         }
 

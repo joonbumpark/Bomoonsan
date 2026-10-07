@@ -21,8 +21,6 @@ namespace Mountains
     {
         const float DefaultDrawDistance = 150f;
         const float StartRatio = 0.3f;
-        // 끝을 그리기 거리보다 살짝 넘겨, 그 거리에서 이미 안개가 거의 다 덮인 상태가 되게 한다.
-        const float EndMargin = 1.05f;
         // 환경광이 아직 계산되지 않았거나(검정) 스카이박스가 없을 때 쓰는 옅은 하늘색.
         static readonly Color FallbackColor = new Color(0.72f, 0.80f, 0.86f);
 
@@ -34,7 +32,7 @@ namespace Mountains
                 ? scatter.settings.instancingMaxDrawDistance
                 : DefaultDrawDistance;
 
-            float end = Mathf.Max(1f, drawDistance * EndMargin);
+            float end = Mathf.Max(1f, drawDistance * VegetationScatterSettings.FogEndMarginOverDrawDistance);
             Color color = EstimateHorizonColor(out bool fromProbe);
 
             RenderSettings.fog = true;
