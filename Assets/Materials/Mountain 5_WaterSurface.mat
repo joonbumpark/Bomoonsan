@@ -54,9 +54,9 @@ Material:
     - _WaveStrength: 0.059
     - _WindDirection: 75
     m_Colors:
-    - _DeepColor: {r: 0, g: 0.6603137, b: 0.6784314, a: 1}
+    - _DeepColor: {r: 0, g: 0.6199902, b: 0.6784314, a: 0.90588236}
     - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShallowColor: {r: 0, g: 0.3584904, b: 0.35116968, a: 0}
+    - _ShallowColor: {r: 0, g: 0.5799813, b: 1, a: 0.7764706}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

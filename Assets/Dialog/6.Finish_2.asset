@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lines:
   - character: {fileID: 11400000, guid: fd6d168c9da080948bee85b57d123bc7, type: 2}
-    text: "\uC774 \uAC8C\uC784\uC774 \uB354 \uC7AC\uBBF8\uC788\uB2E4\uACE0!"
+    text: "\uC774\uAC8C \uB354 \uC7AC\uBBF8\uC788\uB2E4\uACE0!"
   - character: {fileID: 11400000, guid: f1d443e082836d642afc8dab6bfb82c1, type: 2}
-    text: "\uC544\uB2C8\uC57C \uC774 \uAC8C\uC784\uC774 \uB354 \uC7AC\uBBF8\uC788\uB2E4\uACE0!"
+    text: "\uC544\uB2C8\uC57C \uC774 \uB354 \uC7AC\uBBF8\uC788\uB2E4\uACE0!"
   - character: {fileID: 11400000, guid: 8a63e5009865c4243a06c4e4843ba25f, type: 2}
     text: "\uB2E4\uB4E4 \uC2F8\uC6B0\uC9C0\uB9C8!!"
   - character: {fileID: 11400000, guid: 8a63e5009865c4243a06c4e4843ba25f, type: 2}
