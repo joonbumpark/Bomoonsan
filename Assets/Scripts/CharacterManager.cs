@@ -32,8 +32,8 @@ namespace Mountains
                 return null;
             }
 
-            WirePlayerCamera(go);
-            WirePlayerMobileControls(go, go.GetComponent<CharacterMovement>());
+            var mainVCam = WirePlayerCamera(go);
+            WirePlayerMobileControls(go.GetComponent<CharacterMovement>(), mainVCam);
             WirePlayerTreeOcclusionFader(go);
 
             return go;
@@ -42,7 +42,7 @@ namespace Mountains
         {
             return InstantiateCharacter(npcPrefab, data, position, rotation, "Npc");
         }
-        
+
         public GameObject CreateNpc(CharacterData data, Vector3 position)
         {
             return InstantiateCharacter(npcPrefab, data, position, "Npc");
@@ -145,13 +145,13 @@ namespace Mountains
         // Camera")가 직접 몬다 — 이름으로 찾아서 Follow/LookAt만 이 플레이어로 연결한다
         // (카메라 자체 세팅/CinemachineBrain 여부는 손대지 않음 — TerrainSceneSetup의
         // EnsureCinemachineBrain이 지형을 만들 때 이미 보장해둔다).
-        void WirePlayerCamera(GameObject player)
+        CinemachineVirtualCamera WirePlayerCamera(GameObject player)
         {
             var mainVCamObject = GameObject.Find("Main Virtual Camera");
             if (mainVCamObject == null)
             {
                 Debug.LogWarning("[CharacterManager] 'Main Virtual Camera'를 찾을 수 없어 카메라 연결을 건너뜁니다.");
-                return;
+                return null;
             }
 
             var mainVCam = mainVCamObject.GetComponent<CinemachineVirtualCamera>();
@@ -160,12 +160,13 @@ namespace Mountains
                 mainVCam.Follow = player.transform;
                 mainVCam.LookAt = player.transform.Find("CamPivot") ?? player.transform;
             }
+            return mainVCam;
         }
 
-        // 씬에 미리 배치해둔 Canvas/조이스틱(Joystick Pack)을 찾아서 이동·회전 스크립트에
+        // 씬에 미리 배치해둔 Canvas/조이스틱(Joystick Pack)을 찾아서 이동·시점 스크립트에
         // 연결한다. Canvas나 조이스틱이 없으면(모바일 컨트롤을 아직 안 붙인 씬이면) 경고만
         // 남기고 나머지 설정은 그대로 진행한다.
-        void WirePlayerMobileControls(GameObject player, CharacterMovement movement)
+        void WirePlayerMobileControls(CharacterMovement movement, CinemachineVirtualCamera mainVCam)
         {
             // 씬에 Canvas가 여러 개일 수 있다(조이스틱 프리팹이 자기 전용 Canvas를 내장한
             // 경우 등) — Canvas를 먼저 아무거나 고르면 조이스틱이 없는 쪽을 잡을 수 있으니,
@@ -186,17 +187,18 @@ namespace Mountains
 
             if (canvas == null)
             {
-                Debug.LogWarning("[CharacterManager] Canvas를 찾을 수 없어 회전 드래그 연결을 건너뜁니다.");
+                Debug.LogWarning("[CharacterManager] Canvas를 찾을 수 없어 시점 드래그 연결을 건너뜁니다.");
                 return;
             }
 
-            var dragCatcher = FindOrCreateDragCatcher(canvas);
-            dragCatcher.GetComponent<TouchRotateInput>().player = player.transform;
+            var lookInput = FindOrCreateDragCatcher(canvas).GetComponent<TouchRotateInput>();
+            lookInput.Bind(mainVCam, movement);
+            movement.lookInput = lookInput;
         }
 
         // 화면 전체를 덮는 투명 UI Image + TouchRotateInput. 조이스틱보다 하이어라키
         // 앞쪽(= 레이캐스트 우선순위상 뒤쪽)에 둬서, 조이스틱 영역의 드래그는 조이스틱이
-        // 먼저 가로채고 나머지 화면만 회전 드래그로 잡히게 한다.
+        // 먼저 가로채고 나머지 화면만 시점 드래그로 잡히게 한다.
         static GameObject FindOrCreateDragCatcher(Canvas canvas)
         {
             // Find는 직계 자식만 찾는다 — 이 캐처가 Canvas 바로 밑이 아니라 중간 컨테이너

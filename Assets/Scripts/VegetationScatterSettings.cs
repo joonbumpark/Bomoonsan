@@ -12,6 +12,10 @@ namespace Mountains
         public ScatterGroup[] groups = new ScatterGroup[0];
         public int seed;
 
+        [Tooltip("avoidWater가 켜진 그룹에서, 수면보다 이만큼 위까지도 물속으로 쳐서 비운다. " +
+            "수면에 닿을락 말락 한 풀이 물결에 묻혀 지저분해 보이는 것을 막는다.")]
+        [Min(0f)] public float waterSurfaceMargin = 0.3f;
+
         [Tooltip("모든 그룹의 개수(Count)에 곱해지는 전체 배율. 1=설계된 기본 개수 그대로, " +
             "0.5=절반, 2=두 배.")]
         [Range(0f, 3f)] public float densityMultiplier = 1f;

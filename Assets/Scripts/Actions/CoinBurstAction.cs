@@ -24,6 +24,16 @@ namespace Mountains
         [Min(1)] public int numJumps = 1;
         [Tooltip("코인 피벗이 바닥이 아닐 때 지면에서 띄울 높이.")]
         public float groundOffset = 0.5f;
+        [Tooltip("켜두면 코인마다 Y축 기준으로 0~360도 무작위 방향으로 시작한다.")]
+        public bool randomYRotation = true;
+        [Tooltip("켜두면 코인이 날아가는 동안 + 빨려들어가는 동안 Y축으로 계속 핑그르르 돈다.")]
+        public bool spin = true;
+        [Tooltip("초당 회전 수(바퀴). 클수록 빨리 돈다.")]
+        [Min(0f)] public float spinRevolutionsPerSecond = 3f;
+        [Tooltip("코인마다 회전 속도를 이 비율만큼 무작위로 흔든다. 0.3이면 70%~130%.")]
+        [Range(0f, 1f)] public float spinSpeedRandomness = 0.3f;
+        [Tooltip("켜두면 코인마다 회전 방향(시계/반시계)도 무작위.")]
+        public bool randomSpinDirection = true;
         [Tooltip("튀어나간 시점부터 이 시간(초) 뒤에 빨려들어가기 시작한다. scatterDuration보다 " +
             "작으면 아직 공중에 있을 때 끌려온다.")]
         [Min(0f)] public float gatherStartTime = 0.3f;
@@ -70,14 +80,45 @@ namespace Mountains
 
         Transform SpawnScatteredCoin(Vector3 originPosition)
         {
-            var coin = UnityEngine.Object.Instantiate(coinPrefab, originPosition, Quaternion.identity).transform;
+            // 기존과 같이 identity 기준으로 스폰하되, 켜져 있으면 Y축으로만 무작위 회전을 준다.
+            Quaternion rotation = randomYRotation
+                ? Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f)
+                : Quaternion.identity;
+
+            var coin = UnityEngine.Object.Instantiate(coinPrefab, originPosition, rotation).transform;
 
             // 날아가는 동안 플레이어에 스칠 수 있는데, Coin이 그때 스스로 파괴되면 연출이
             // 중간에 끊긴다 — 줍기 판정을 끄고 도착 처리를 이 액션이 직접 한다.
             DisablePickup(coin.gameObject);
 
             coin.DOJump(RandomScatterPoint(originPosition), jumpPower, numJumps, scatterDuration);
+            if (spin)
+            {
+                StartSpin(coin);
+            }
             return coin;
+        }
+
+        // Y축 등속 회전을 무한 반복한다. 타깃을 Transform이 아닌 GameObject로 걸어둔다 —
+        // GatherCoin의 coin.DOKill()은 Transform 타깃 트윈(DOJump)만 죽이므로, 회전은
+        // 빨려들어가는 동안에도 이어지고 코인이 파괴될 때(SetLink) 함께 정리된다.
+        void StartSpin(Transform coin)
+        {
+            float speed = spinRevolutionsPerSecond *
+                          (1f + UnityEngine.Random.Range(-spinSpeedRandomness, spinSpeedRandomness));
+            if (speed <= 0f)
+            {
+                return;
+            }
+
+            float direction = randomSpinDirection && UnityEngine.Random.value < 0.5f ? -1f : 1f;
+            float secondsPerRevolution = 1f / speed;
+
+            coin.DOLocalRotate(new Vector3(0f, 360f * direction, 0f), secondsPerRevolution, RotateMode.LocalAxisAdd)
+                .SetEase(Ease.Linear)
+                .SetLoops(-1, LoopType.Incremental)
+                .SetTarget(coin.gameObject)
+                .SetLink(coin.gameObject);
         }
 
         static void DisablePickup(GameObject coin)

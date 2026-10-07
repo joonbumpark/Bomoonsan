@@ -24,6 +24,13 @@ namespace Mountains
         [Tooltip("모바일 캔버스의 조이스틱(Fixed/Floating 등). 비워두면 키보드 입력만 쓴다.")]
         public Joystick moveJoystick;
 
+        [Tooltip("화면 드래그로 시점만 둘러보는 입력. 비워두면 카메라 방향을 그대로 이동 기준으로 쓴다.")]
+        public TouchRotateInput lookInput;
+
+        // 이번 프레임에 이동 입력이 있었는지 — TouchRotateInput이 둘러본 시점을 등 뒤로
+        // 되돌릴 때 본다.
+        public bool HasMoveInput { get; private set; }
+
         NavMeshAgent _agent;
         float _yawAngularVelocity;
 
@@ -31,8 +38,7 @@ namespace Mountains
         {
             _agent = GetComponent<NavMeshAgent>();
             // 회전은 지금처럼 SmoothDampAngle로 직접 제어한다(아래) — NavMeshAgent가 이동
-            // 속도 기준으로 자체 회전까지 해버리면 이 회전 데드존/스무딩과 충돌한다. 화면
-            // 드래그로 직접 도는 TouchRotateInput도 이걸 꺼야 방해받지 않는다.
+            // 속도 기준으로 자체 회전까지 해버리면 이 회전 데드존/스무딩과 충돌한다.
             _agent.updateRotation = false;
 
             if (cameraTransform == null && Camera.main != null)
@@ -49,6 +55,7 @@ namespace Mountains
             // 강제 이동은 아예 UI를 안 거치므로 여기서 한 번에 막는다.
             if (InputBlocker.IsBlocked)
             {
+                HasMoveInput = false;
                 return;
             }
 
@@ -62,16 +69,10 @@ namespace Mountains
             Vector3 input = new Vector3(horizontal, 0f, vertical);
 
             Vector3 moveDirection = Vector3.zero;
-            if (input.sqrMagnitude > 0.0001f)
+            HasMoveInput = input.sqrMagnitude > 0.0001f;
+            if (HasMoveInput)
             {
-                Vector3 forward = cameraTransform != null
-                    ? Vector3.Scale(cameraTransform.forward, new Vector3(1f, 0f, 1f)).normalized
-                    : Vector3.forward;
-                Vector3 right = cameraTransform != null
-                    ? Vector3.Scale(cameraTransform.right, new Vector3(1f, 0f, 1f)).normalized
-                    : Vector3.right;
-
-                moveDirection = (forward * vertical + right * horizontal).normalized;
+                moveDirection = (MoveBasis() * input).normalized;
 
                 // 데드존 밖으로 벗어난 경우에만 회전을 갱신한다. 이동 방향(moveDirection)
                 // 자체는 입력을 그대로 따르므로 이동 정확도는 그대로 유지되고, 캐릭터가
@@ -109,6 +110,21 @@ namespace Mountains
             // 물 회피(축 분리 슬라이드) 코드가 통째로 필요 없어졌다. 지형 표면 높이도
             // NavMeshAgent가 알아서 따라가므로 중력 시뮬레이션도 더 이상 필요 없다.
             _agent.Move(moveDirection * moveSpeed * Time.deltaTime);
+        }
+
+        // 입력(조이스틱 위 = +Z)을 월드 방향으로 돌리는 기준 — 카메라의 수평 방향에서
+        // 둘러본 각도만큼 되돌린 것, 즉 "둘러보기 전 등 뒤 카메라" 방향이다. 시점을 어디로
+        // 돌려놓든 조이스틱 조작감이 그대로인 이유(TouchRotateInput.LookYaw 주석 참고).
+        // Cinemachine 카메라는 롤이 없어서 Y 오일러각이 곧 수평 방향이다.
+        Quaternion MoveBasis()
+        {
+            if (cameraTransform == null)
+            {
+                return Quaternion.identity;
+            }
+
+            float lookYaw = lookInput != null ? lookInput.LookYaw : 0f;
+            return Quaternion.Euler(0f, cameraTransform.eulerAngles.y - lookYaw, 0f);
         }
     }
 }

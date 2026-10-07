@@ -1,0 +1,195 @@
+A	Assets/Alstra Infinite.meta
+A	Assets/Alstra Infinite/Fish - PolyPack.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Materials.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Materials/Main.mat
+A	Assets/Alstra Infinite/Fish - PolyPack/Materials/Main.mat.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV1.fbx
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV1.fbx.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV2.fbx
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV2.fbx.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV3.fbx
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV3.fbx.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV4.fbx
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/FishV4.fbx.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/SharkV1.fbx
+A	Assets/Alstra Infinite/Fish - PolyPack/Models/SharkV1.fbx.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV1.prefab
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV1.prefab.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV2.prefab
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV2.prefab.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV3.prefab
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV3.prefab.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV4.prefab
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/FishV4.prefab.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/SharkV1.prefab
+A	Assets/Alstra Infinite/Fish - PolyPack/Prefabs/SharkV1.prefab.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Scene.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Scene/Showcase.unity
+A	Assets/Alstra Infinite/Fish - PolyPack/Scene/Showcase.unity.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Scene/ShowcaseFloor.mat
+A	Assets/Alstra Infinite/Fish - PolyPack/Scene/ShowcaseFloor.mat.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Texture.meta
+A	Assets/Alstra Infinite/Fish - PolyPack/Texture/PolyPackFish.png
+A	Assets/Alstra Infinite/Fish - PolyPack/Texture/PolyPackFish.png.meta
+A	Assets/Editor/InsectSwarmDiagnostics.cs
+A	Assets/Editor/InsectSwarmDiagnostics.cs.meta
+A	Assets/Editor/InsectSwarmSetup.cs
+A	Assets/Editor/InsectSwarmSetup.cs.meta
+A	Assets/Materials/BirdFlock.mat
+A	Assets/Materials/BirdFlock.mat.meta
+A	Assets/Materials/InsectWing.mat
+A	Assets/Materials/InsectWing.mat.meta
+M	Assets/Materials/Mountain 5_PathMask.asset
+M	Assets/Materials/Mountain 5_WaterMask_0.asset
+M	Assets/Materials/Mountain 5_WaterSurface.mat
+M	Assets/Polytope Studio/Lowpoly_Demos/Environment_Free/Helpers/Plane mat.mat
+M	Assets/Polytope Studio/Lowpoly_Environments/Sources/Materials/PT_Terrain_mat.mat
+M	Assets/Prefabs/FishMat.mat
+M	Assets/Prefabs/FishMat.mat.meta
+A	Assets/Prefabs/FlySwarm.prefab
+A	Assets/Prefabs/FlySwarm.prefab.meta
+A	Assets/Prefabs/InsectFly.asset
+A	Assets/Prefabs/InsectFly.asset.meta
+A	Assets/Prefabs/InsectSwarm.prefab
+A	Assets/Prefabs/InsectSwarm.prefab.meta
+A	Assets/Prefabs/InsectWing.asset
+A	Assets/Prefabs/InsectWing.asset.meta
+M	Assets/Scenes/Mountain 5.unity
+M	Assets/Scenes/TitleScene.unity
+A	Assets/Scripts/Actions/LookAtPlayerAction.cs
+A	Assets/Scripts/Actions/LookAtPlayerAction.cs.meta
+A	Assets/Scripts/Actions/ScareFishAction.cs
+A	Assets/Scripts/Actions/ScareFishAction.cs.meta
+M	Assets/Scripts/Actions/SpawnFxAction.cs
+M	Assets/Scripts/CharacterManager.cs
+M	Assets/Scripts/CharacterMovement.cs
+A	Assets/Scripts/Env.meta
+A	Assets/Scripts/Env/BirdFlock.cs
+A	Assets/Scripts/Env/BirdFlock.cs.meta
+A	Assets/Scripts/Env/BirdFlockJobs.cs
+A	Assets/Scripts/Env/BirdFlockJobs.cs.meta
+A	Assets/Scripts/Env/BirdFlockSettings.cs
+A	Assets/Scripts/Env/BirdFlockSettings.cs.meta
+A	Assets/Scripts/Env/Fish.cs
+A	Assets/Scripts/Env/Fish.cs.meta
+A	Assets/Scripts/Env/FishDisplacement.shader
+A	Assets/Scripts/Env/FishDisplacement.shader.meta
+A	Assets/Scripts/Env/FishFlockJobs.cs
+A	Assets/Scripts/Env/FishFlockJobs.cs.meta
+A	Assets/Scripts/Env/FishManager.cs
+A	Assets/Scripts/Env/FishManager.cs.meta
+A	Assets/Scripts/Env/FishScare.cs
+A	Assets/Scripts/Env/FishScare.cs.meta
+A	Assets/Scripts/Env/FishSchool.cs
+A	Assets/Scripts/Env/FishSchool.cs.meta
+A	Assets/Scripts/Env/FishSchoolSettings.cs
+A	Assets/Scripts/Env/FishSchoolSettings.cs.meta
+A	Assets/Scripts/Env/FishSpecies.cs
+A	Assets/Scripts/Env/FishSpecies.cs.meta
+A	Assets/Scripts/Env/InsectWingMesh.cs
+A	Assets/Scripts/Env/InsectWingMesh.cs.meta
+M	Assets/Scripts/FxUtility.cs
+M	Assets/Scripts/ProceduralTerrainMesh.cs
+M	Assets/Scripts/TouchRotateInput.cs
+A	Assets/Scripts/Trigger/ITriggerActionGizmo.cs
+A	Assets/Scripts/Trigger/ITriggerActionGizmo.cs.meta
+M	Assets/Scripts/Trigger/TriggerActionGizmos.cs
+M	Assets/Scripts/VegetationScatter.cs
+M	Assets/Scripts/VegetationScatterSettings.cs
+A	Assets/Settings/Mountain 5_BirdFlockSettings.asset
+A	Assets/Settings/Mountain 5_BirdFlockSettings.asset.meta
+A	Assets/Settings/Mountain 5_FishSchoolSettings.asset
+A	Assets/Settings/Mountain 5_FishSchoolSettings.asset.meta
+M	Assets/Settings/Mountain 5_VegetationSettings.asset
+A	Assets/Shaders/BirdDisplacement.shader
+A	Assets/Shaders/BirdDisplacement.shader.meta
+A	Assets/Zacxophone.meta
+A	Assets/Zacxophone/Birds.meta
+A	Assets/Zacxophone/Birds/Animators.meta
+A	Assets/Zacxophone/Birds/Animators/01BirdAnimator.controller
+A	Assets/Zacxophone/Birds/Animators/01BirdAnimator.controller.meta
+A	Assets/Zacxophone/Birds/Animators/03BirdsAnimator.controller
+A	Assets/Zacxophone/Birds/Animators/03BirdsAnimator.controller.meta
+A	Assets/Zacxophone/Birds/Animators/05BirdsAnimator.controller
+A	Assets/Zacxophone/Birds/Animators/05BirdsAnimator.controller.meta
+A	Assets/Zacxophone/Birds/Animators/10BirdsAnimator.controller
+A	Assets/Zacxophone/Birds/Animators/10BirdsAnimator.controller.meta
+A	Assets/Zacxophone/Birds/Animators/15BirdsAnimator.controller
+A	Assets/Zacxophone/Birds/Animators/15BirdsAnimator.controller.meta
+A	Assets/Zacxophone/Birds/Built-In.meta
+A	Assets/Zacxophone/Birds/Built-In/DemoScenes.meta
+A	Assets/Zacxophone/Birds/Built-In/DemoScenes/LowPolyBirdsExampleSceneBuiltIn.unity
+A	Assets/Zacxophone/Birds/Built-In/DemoScenes/LowPolyBirdsExampleSceneBuiltIn.unity.meta
+A	Assets/Zacxophone/Birds/Built-In/Materials.meta
+A	Assets/Zacxophone/Birds/Built-In/Materials/BirdMaterial.mat
+A	Assets/Zacxophone/Birds/Built-In/Materials/BirdMaterial.mat.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/01BirdPrefab.prefab
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/01BirdPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/03BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/03BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/05BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/05BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/10BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/10BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/15BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/Built-In/Prefabs/15BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/HDRP.meta
+A	Assets/Zacxophone/Birds/HDRP/DemoScenes.meta
+A	Assets/Zacxophone/Birds/HDRP/DemoScenes/BirdsExampleSceneHDRP.unity
+A	Assets/Zacxophone/Birds/HDRP/DemoScenes/BirdsExampleSceneHDRP.unity.meta
+A	Assets/Zacxophone/Birds/HDRP/MaskMapTexture.meta
+A	Assets/Zacxophone/Birds/HDRP/MaskMapTexture/BirdsMaterial_MaskMap.png
+A	Assets/Zacxophone/Birds/HDRP/MaskMapTexture/BirdsMaterial_MaskMap.png.meta
+A	Assets/Zacxophone/Birds/HDRP/Materials.meta
+A	Assets/Zacxophone/Birds/HDRP/Materials/BirdMaterial.mat
+A	Assets/Zacxophone/Birds/HDRP/Materials/BirdMaterial.mat.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/01BirdPrefab.prefab
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/01BirdPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/03BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/03BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/05BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/05BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/10BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/10BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/15BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/HDRP/Prefabs/15BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/Meshes.meta
+A	Assets/Zacxophone/Birds/Meshes/01Bird.fbx
+A	Assets/Zacxophone/Birds/Meshes/01Bird.fbx.meta
+A	Assets/Zacxophone/Birds/Meshes/03Birds.fbx
+A	Assets/Zacxophone/Birds/Meshes/03Birds.fbx.meta
+A	Assets/Zacxophone/Birds/Meshes/05Birds.fbx
+A	Assets/Zacxophone/Birds/Meshes/05Birds.fbx.meta
+A	Assets/Zacxophone/Birds/Meshes/10Birds.fbx
+A	Assets/Zacxophone/Birds/Meshes/10Birds.fbx.meta
+A	Assets/Zacxophone/Birds/Meshes/15Birds.fbx
+A	Assets/Zacxophone/Birds/Meshes/15Birds.fbx.meta
+A	Assets/Zacxophone/Birds/Textures.meta
+A	Assets/Zacxophone/Birds/Textures/Bird_Albedo.png
+A	Assets/Zacxophone/Birds/Textures/Bird_Albedo.png.meta
+A	Assets/Zacxophone/Birds/Textures/Bird_MetallicSmoothness.png
+A	Assets/Zacxophone/Birds/Textures/Bird_MetallicSmoothness.png.meta
+A	Assets/Zacxophone/Birds/URP.meta
+A	Assets/Zacxophone/Birds/URP/DemoScenes.meta
+A	Assets/Zacxophone/Birds/URP/DemoScenes/LowPolyBirdsExampleSceneURP.unity
+A	Assets/Zacxophone/Birds/URP/DemoScenes/LowPolyBirdsExampleSceneURP.unity.meta
+A	Assets/Zacxophone/Birds/URP/Materials.meta
+A	Assets/Zacxophone/Birds/URP/Materials/BirdMaterial.mat
+A	Assets/Zacxophone/Birds/URP/Materials/BirdMaterial.mat.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs/01BirdPrefab.prefab
+A	Assets/Zacxophone/Birds/URP/Prefabs/01BirdPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs/03BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/URP/Prefabs/03BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs/05BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/URP/Prefabs/05BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs/10BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/URP/Prefabs/10BirdsPrefab.prefab.meta
+A	Assets/Zacxophone/Birds/URP/Prefabs/15BirdsPrefab.prefab
+A	Assets/Zacxophone/Birds/URP/Prefabs/15BirdsPrefab.prefab.meta
+M	Packages/manifest.json
+M	Packages/packages-lock.json

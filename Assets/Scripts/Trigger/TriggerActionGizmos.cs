@@ -48,6 +48,13 @@ namespace Mountains
 
         static void DrawAction(Transform origin, TriggerAction action)
         {
+            // 액션이 스스로 그릴 게 있으면(반경 등) 먼저 그린다.
+            if (action is ITriggerActionGizmo custom)
+            {
+                custom.DrawGizmos(origin);
+                Gizmos.color = LineColor;
+            }
+
             var type = action.GetType();
             foreach (var field in GetMarkedFields(type))
             {
