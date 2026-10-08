@@ -240,6 +240,7 @@ namespace Match3
 
             // 틀린 버튼은 잠그고(다시 못 누름) 맞힐 때까지 남은 버튼으로 다시 고르게 한다.
             wrongAttempts++;
+            SoundManager.Play(Sfx.QuizWrong);
             answerButtons[choice].interactable = false;
             answerButtons[choice].image.color = WrongTint;
             hintText.text = "틀렸어요! 다시 골라보세요";
@@ -259,6 +260,7 @@ namespace Match3
             score += points;
 
             answerButtons[choice].image.color = CorrectTint;
+            SoundManager.Play(Sfx.QuizCorrect);
             hintText.text = points > 0
                 ? $"정답! {CountryQuizData.Countries[choiceCountry[choice]].Name} +{points}점"
                 : $"정답! {CountryQuizData.Countries[choiceCountry[choice]].Name}";

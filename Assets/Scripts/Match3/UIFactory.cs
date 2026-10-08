@@ -28,6 +28,7 @@ namespace Match3
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
+            Mountains.ResponsiveCanvas.Apply(scaler);
 
             canvasRoot.AddComponent<GraphicRaycaster>();
 

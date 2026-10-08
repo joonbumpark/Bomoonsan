@@ -299,6 +299,7 @@ namespace Match3
             var b = new Vector2Int(tileB.Col, tileB.Row);
             bool involvesItem = tileA.Item != ItemType.None || tileB.Item != ItemType.None;
 
+            SoundManager.Play(Sfx.Match3Swap);
             yield return StartCoroutine(AnimateSwapVisual(tileA, tileB));
             board.Swap(a, b);
             SwapViews(tileA, tileB);
@@ -308,6 +309,7 @@ namespace Match3
             if (!involvesItem && !matched)
             {
                 // 아이템도 아니고 매치도 만들어지지 않으면 원래대로 되돌린다.
+                SoundManager.Play(Sfx.Match3SwapFail);
                 yield return StartCoroutine(AnimateSwapVisual(tileA, tileB));
                 board.Swap(a, b);
                 SwapViews(tileA, tileB);
@@ -454,6 +456,7 @@ namespace Match3
         {
             while (cellsToClear.Count > 0)
             {
+                PlayClearSound(cellsToClear, chain);
                 yield return StartCoroutine(AnimateClear(cellsToClear));
 
                 board.Clear(cellsToClear);
@@ -484,6 +487,25 @@ namespace Match3
                 var groups = board.FindMatchGroups();
                 cellsToClear = ApplyMatchGroupsAndGetClearSet(groups);
             }
+        }
+
+        /// <summary>지워지는 칸에 아이템이 끼어 있으면 아이템 발동음, 아니면 매치음.
+        /// 연쇄(chain)가 이어질수록 음을 조금씩 높여 콤보 느낌을 낸다.</summary>
+        private void PlayClearSound(HashSet<Vector2Int> cellsToClear, int chain)
+        {
+            bool hasItem = false;
+            foreach (var cell in cellsToClear)
+            {
+                if (board.GetItem(cell.x, cell.y) != ItemType.None)
+                {
+                    hasItem = true;
+                    break;
+                }
+            }
+
+            if (hasItem)
+                SoundManager.Play(Sfx.Match3Item);
+            SoundManager.Play(Sfx.Match3Match, Mathf.Min(1f + (chain - 1) * 0.12f, 1.6f));
         }
 
         /// <summary>

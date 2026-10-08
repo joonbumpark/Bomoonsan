@@ -184,7 +184,23 @@ namespace Match3
             optionButton.onClick.AddListener(settingsPopup.Open);
             settingsPopup.RestartRequested += OnSettingsRestartRequested;
             settingsPopup.ExitToMenuRequested += OnSettingsExitRequested;
+
+            // 메뉴/팝업 버튼 전부에 클릭음 - 게임 안 버튼(보기, 조각 등)은 각 게임이 자기 소리를 낸다.
+            // HashSet - 설정 팝업이 AppCanvas 밑에 있어도 같은 버튼에 두 번 붙지 않게.
+            var shellButtons = new HashSet<Button>(appCanvasRoot.GetComponentsInChildren<Button>(true));
+            shellButtons.UnionWith(settingsPopup.GetComponentsInChildren<Button>(true));
+            shellButtons.Add(optionButton);
+            foreach (var button in shellButtons)
+                button.onClick.AddListener(() => SoundManager.Play(Sfx.Click));
         }
+
+        /// <summary>게임별 배경음악. 따로 곡이 없는 게임은 매치3 곡을 같이 쓴다.</summary>
+        private static Bgm BgmFor(GameKind kind) => kind switch
+        {
+            GameKind.CountryQuiz => Bgm.CountryQuiz,
+            GameKind.Jigsaw => Bgm.Jigsaw,
+            _ => Bgm.Match3,
+        };
 
         // ----------------------------------------------------------------
         // 화면 전환
@@ -234,6 +250,7 @@ namespace Match3
 
         private void ShowGameSelect()
         {
+            SoundManager.PlayBgm(Bgm.Lobby);
             gameSelectPopup.SetNicknameInputText(PlayerPrefs.GetString(NicknamePrefKey, string.Empty));
             SetActivePanel(gameSelectPopup.gameObject);
             gameSelectPopup.Show();
@@ -266,6 +283,7 @@ namespace Match3
         {
             isVersusMatch = false;
             ShowGame();
+            SoundManager.PlayBgm(BgmFor(selectedGame));
             CurrentGame.BeginRound();
         }
 
@@ -355,11 +373,15 @@ namespace Match3
             currentMatchId = matchId;
             currentOpponentName = opponentName;
             ShowGame();
+            SoundManager.PlayBgm(BgmFor(selectedGame));
             CurrentGame.BeginRound(seed);
         }
 
         private void HandleRoundEnded(int finalScore)
         {
+            SoundManager.StopBgm();
+            SoundManager.Play(Sfx.RoundEnd);
+
             if (isVersusMatch)
             {
                 ShowWaitingForResult();

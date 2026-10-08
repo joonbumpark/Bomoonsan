@@ -249,6 +249,7 @@ namespace Match3
 
             if (selectedSlot == -1)
             {
+                SoundManager.Play(Sfx.JigsawSelect);
                 selectedSlot = slotIndex;
                 RedrawTile(slotIndex);
                 return;
@@ -262,6 +263,7 @@ namespace Match3
             }
 
             (displayedPieceId[selectedSlot], displayedPieceId[slotIndex]) = (displayedPieceId[slotIndex], displayedPieceId[selectedSlot]);
+            SoundManager.Play(Sfx.JigsawSwap);
             moves++;
             int previousSelected = selectedSlot;
             selectedSlot = -1;
@@ -306,6 +308,7 @@ namespace Match3
             }
             UpdateHud();
 
+            SoundManager.Play(Sfx.JigsawComplete);
             Match3EffectSpawner.SpawnCelebration(this, boardRoot, Vector2.zero);
             Match3EffectSpawner.SpawnPopupText(this, boardRoot, Vector2.zero, allSolved ? "모두 완성!" : "완성!", new Color(1f, 0.85f, 0.3f), 120f);
 

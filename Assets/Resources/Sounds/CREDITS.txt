@@ -1,0 +1,22 @@
+사운드 출처 (전부 CC0 - 상업적 사용 가능, 출처 표기 의무 없음)
+
+효과음 (Sfx/)
+  Kenney (https://kenney.nl) - CC0
+    click.ogg              Interface Sounds / click_003
+    match3_swap.ogg        Interface Sounds / drop_001
+    match3_swap_fail.ogg   Interface Sounds / error_004
+    match3_match.ogg       Interface Sounds / glass_002
+    quiz_correct.ogg       Interface Sounds / confirmation_001
+    quiz_wrong.ogg         Interface Sounds / error_006
+    jigsaw_select.ogg      Interface Sounds / select_002
+    jigsaw_swap.ogg        Interface Sounds / pluck_001
+    match3_item.ogg        Digital Audio / powerUp2
+    jigsaw_complete.ogg    Music Jingles / jingles_PIZZI10
+    round_end.ogg          Music Jingles / jingles_PIZZI03
+
+배경음악 (Bgm/)
+  MintoDog - "Cozy Puzzle" 시리즈 (https://opengameart.org) - CC0
+    lobby.ogg              Cozy Puzzle Stage Select
+    match3.ogg             Cozy Puzzle In-Game 1
+    jigsaw.ogg             Cozy Puzzle In-Game 2
+    country_quiz.ogg       Cozy Puzzle In-Game 3
