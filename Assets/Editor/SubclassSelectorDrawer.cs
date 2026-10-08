@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 
 namespace Mountains
@@ -14,6 +15,9 @@ namespace Mountains
     public class SubclassSelectorDrawer : PropertyDrawer
     {
         const string NoneLabel = "(없음)";
+        // Unity의 ManagedReferenceUtility.RefIdNull / RefIdUnknown 값 — 네임스페이스에 의존하지 않으려고 직접 둔다.
+        const long RefIdNull = -2;
+        const long RefIdUnknown = -1;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -22,6 +26,11 @@ namespace Mountains
                 EditorGUI.PropertyField(position, property, label, true);
                 return;
             }
+
+            // 배열의 +로 칸을 늘리면 Unity가 마지막 칸을 그대로 복제하는데, [SerializeReference]에서는
+            // 복제가 아니라 같은 인스턴스를 가리키게 된다 — 새 칸을 고치면 원본도 같이 바뀐다.
+            // 새 칸은 늘 빈 칸((없음))으로 시작하도록 중복 참조를 비운다.
+            ClearDuplicatedReference(property);
 
             // 본체(폴드아웃 + 하위 필드)를 먼저 그리고, 첫 줄 오른쪽에 드롭다운을 겹쳐 올린다.
             EditorGUI.PropertyField(position, property, label, true);
@@ -41,6 +50,78 @@ namespace Mountains
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             return EditorGUI.GetPropertyHeight(property, true);
+        }
+
+        // 같은 오브젝트 안에서 이미 앞쪽 속성이 가리키고 있는 인스턴스를 또 가리키는 칸이면
+        // 비운다. 의도적으로 한 인스턴스를 여러 칸이 공유하는 경우는 이 시스템에 없다.
+        // 그리는 도중에 값을 고치면 인스펙터의 속성 순회가 깨지므로, 감지만 하고 수정은
+        // 그리기가 끝난 뒤(delayCall)에 새 SerializedObject로 한다.
+        static readonly HashSet<string> PendingClears = new HashSet<string>();
+
+        static void ClearDuplicatedReference(SerializedProperty property)
+        {
+            if (!IsDuplicatedReference(property))
+            {
+                return;
+            }
+
+            var targets = property.serializedObject.targetObjects;
+            string path = property.propertyPath;
+            string key = property.serializedObject.targetObject.GetInstanceID() + path;
+            if (!PendingClears.Add(key))
+            {
+                return;
+            }
+
+            EditorApplication.delayCall += () =>
+            {
+                PendingClears.Remove(key);
+                if (targets == null || targets.Length == 0 || targets[0] == null)
+                {
+                    return;
+                }
+
+                var serializedObject = new SerializedObject(targets);
+                var target = serializedObject.FindProperty(path);
+                if (target == null || !IsDuplicatedReference(target))
+                {
+                    return;
+                }
+
+                target.managedReferenceValue = null;
+                serializedObject.ApplyModifiedProperties();
+                InternalEditorUtility.RepaintAllViews();
+            };
+        }
+
+        static bool IsDuplicatedReference(SerializedProperty property)
+        {
+            if (property.propertyType != SerializedPropertyType.ManagedReference)
+            {
+                return false;
+            }
+
+            long id = property.managedReferenceId;
+            if (id == RefIdNull || id == RefIdUnknown)
+            {
+                return false;
+            }
+
+            string myPath = property.propertyPath;
+            var iterator = property.serializedObject.GetIterator();
+            while (iterator.Next(true))
+            {
+                if (iterator.propertyType != SerializedPropertyType.ManagedReference ||
+                    iterator.managedReferenceId != id)
+                {
+                    continue;
+                }
+
+                // 가장 앞선 소유자는 원본, 그 뒤에 같은 id가 나오면 복제된 칸이다.
+                return iterator.propertyPath != myPath;
+            }
+
+            return false;
         }
 
         static string GetDisplayName(SerializedProperty property)

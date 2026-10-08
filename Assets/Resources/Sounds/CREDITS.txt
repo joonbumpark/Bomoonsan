@@ -13,6 +13,8 @@
     match3_item.ogg        Digital Audio / powerUp2
     jigsaw_complete.ogg    Music Jingles / jingles_PIZZI10
     round_end.ogg          Music Jingles / jingles_PIZZI03
+  Kenney Starter-Kit-3D-Platformer (https://github.com/KenneyNL/Starter-Kit-3D-Platformer) - MIT
+    footstep_1~4.ogg       sounds/walking.ogg 를 발걸음 한 번씩 잘라 다듬은 것
 
 배경음악 (Bgm/)
   MintoDog - "Cozy Puzzle" 시리즈 (https://opengameart.org) - CC0

@@ -261,7 +261,10 @@ namespace Mountains
                 sourcePrefab = prefab,
                 instance = instance,
                 // 프레이밍할 때마다 GetComponentsInChildren을 다시 돌리지 않게 여기서 한 번만 모은다.
-                renderers = instance.GetComponentsInChildren<Renderer>(true)
+                // 파티클 렌더러는 뺀다 — 프레이밍은 "몸통"을 기준으로 해야 하는데, 이펙트(바람, 오라 등)의
+                // 경계는 모델보다 훨씬 커서 포함하면 카메라가 멀리 물러나 캐릭터가 점으로 보인다.
+                renderers = System.Array.FindAll(instance.GetComponentsInChildren<Renderer>(true),
+                    renderer => !(renderer is ParticleSystemRenderer))
             };
 
             _models[character] = model;
@@ -284,6 +287,13 @@ namespace Mountains
             foreach (var collider in instance.GetComponentsInChildren<Collider>(true))
             {
                 Destroy(collider);
+            }
+
+            // 월드용 이펙트(프리팹에 붙여둔 파티클)는 초상화에 필요 없고, 크기가 모델보다 커서
+            // 구도를 망친다 — 파티클이 달린 오브젝트를 꺼둔다.
+            foreach (var particles in instance.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                particles.gameObject.SetActive(false);
             }
 
             // Animator는 남겨서 Idle 애니메이션이 돌게 하되, 루트 모션은 끈다 — 켜져 있으면
