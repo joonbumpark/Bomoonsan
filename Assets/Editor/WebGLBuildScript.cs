@@ -17,13 +17,38 @@ namespace Match3.EditorTools
         // 프로젝트 루트 기준 출력 경로 (.gitignore의 /[Bb]uilds/ 규칙에 걸려 커밋되지 않는다).
         private const string OutputDir = "Builds/WebGL";
 
+        // 미니게임만 웹에서 빠르게 확인할 때 쓰는 씬 (타이틀/마운틴 없이 게임 선택부터 시작).
+        private const string GameScenePath = "Assets/Scenes/InGameScene.unity";
+
         [MenuItem("Bomoonsan/Build WebGL")]
         public static void BuildFromMenu()
         {
             Build();
         }
 
+        [MenuItem("Bomoonsan/Build WebGL (InGameScene Only)")]
+        public static void BuildGameSceneOnlyFromMenu()
+        {
+            BuildGameSceneOnly();
+        }
+
+        /// <summary>Build Settings에 켜져 있는 씬 전체를 빌드한다.</summary>
         public static void Build()
+        {
+            BuildScenes(EditorBuildSettings.scenes
+                .Where(s => s.enabled)
+                .Select(s => s.path)
+                .ToArray());
+        }
+
+        /// <summary>InGameScene 하나만 빌드한다 - 배치 모드:
+        /// -executeMethod Match3.EditorTools.WebGLBuildScript.BuildGameSceneOnly</summary>
+        public static void BuildGameSceneOnly()
+        {
+            BuildScenes(new[] { GameScenePath });
+        }
+
+        private static void BuildScenes(string[] scenes)
         {
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
             string outputPath = Path.Combine(projectRoot, OutputDir);
@@ -39,10 +64,7 @@ namespace Match3.EditorTools
 
             var options = new BuildPlayerOptions
             {
-                scenes = EditorBuildSettings.scenes
-                    .Where(s => s.enabled)
-                    .Select(s => s.path)
-                    .ToArray(),
+                scenes = scenes,
                 locationPathName = outputPath,
                 target = BuildTarget.WebGL,
                 options = BuildOptions.None,

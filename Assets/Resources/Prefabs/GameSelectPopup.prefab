@@ -586,7 +586,7 @@ GameObject:
   - component: {fileID: 6371259820023486424}
   - component: {fileID: 2826534968299058994}
   m_Layer: 5
-  m_Name: Button (1)
+  m_Name: CountryQuizButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -639,7 +639,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 4c29a1c03e4684196b638bb0536b6f5f, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 7a1d90e4a3f754c89922e926d1ce2e1b, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -761,7 +761,8 @@ MonoBehaviour:
   m_text: "\uB2C9\uB124\uC784 (\uBE44\uC6B0\uBA74 \uB79C\uB364)"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: f3c09becff4914ecb803eb510349f785, type: 2}
-  m_sharedMaterial: {fileID: -1275143148135782299, guid: f3c09becff4914ecb803eb510349f785, type: 2}
+  m_sharedMaterial: {fileID: -1275143148135782299, guid: f3c09becff4914ecb803eb510349f785,
+    type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -957,6 +958,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   closeButton: {fileID: 8168073339408028040}
   returnToStartButton: {fileID: 5256263068237638857}
+  titleSceneName: TitleScene
 --- !u!1 &4363893813460369312
 GameObject:
   m_ObjectHideFlags: 0
@@ -1181,7 +1183,7 @@ MonoBehaviour:
   gameButtons:
   - kind: 0
     button: {fileID: 8019731100383450286}
-  - kind: 3
+  - kind: 5
     button: {fileID: 2826534968299058994}
   - kind: 4
     button: {fileID: 9133058916857895365}
@@ -1256,7 +1258,8 @@ MonoBehaviour:
   m_text: "\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: f3c09becff4914ecb803eb510349f785, type: 2}
-  m_sharedMaterial: {fileID: -1275143148135782299, guid: f3c09becff4914ecb803eb510349f785, type: 2}
+  m_sharedMaterial: {fileID: -1275143148135782299, guid: f3c09becff4914ecb803eb510349f785,
+    type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

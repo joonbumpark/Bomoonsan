@@ -5,7 +5,8 @@ namespace Match3
     /// <summary>
     /// 하나의 "제한시간 라운드 + 점수" 게임이 지켜야 하는 공통 계약. AppFlowManager가
     /// 어떤 게임이 선택됐든 똑같은 방식(BeginRound/RoundEnded/CurrentScore/SetVisible)으로
-    /// 다루기 위한 인터페이스다. Match3GameManager/WhackGameManager/SimonGameManager가 구현한다.
+    /// 다루기 위한 인터페이스다. Match3GameManager/WhackGameManager/SimonGameManager/TetrisGameManager/
+    /// JigsawGameManager/CountryQuizGameManager가 구현한다.
     /// </summary>
     public interface IRoundGame
     {
@@ -40,6 +41,7 @@ namespace Match3
         Simon,
         Tetris,
         Jigsaw,
+        CountryQuiz,
     }
 
     public static class GameKindExtensions
@@ -52,6 +54,7 @@ namespace Match3
             GameKind.Simon => "simon",
             GameKind.Tetris => "tetris",
             GameKind.Jigsaw => "jigsaw",
+            GameKind.CountryQuiz => "country_quiz",
             _ => "match3",
         };
 
@@ -62,6 +65,7 @@ namespace Match3
             GameKind.Simon => "순서 기억하기",
             GameKind.Tetris => "테트리스",
             GameKind.Jigsaw => "직소 퍼즐",
+            GameKind.CountryQuiz => "나라찾기",
             _ => kind.ToString(),
         };
 

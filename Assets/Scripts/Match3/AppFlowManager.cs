@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Match3
 {
     /// <summary>
-    /// 앱 전체 흐름을 관리한다: 게임 선택(3매치/테트리스/직소 퍼즐, 앱의 첫 화면) -> (매치3만)
+    /// 앱 전체 흐름을 관리한다: 게임 선택(3매치/나라찾기/직소 퍼즐, 앱의 첫 화면) -> (매치3만)
     /// 싱글/대전 선택(PlayModePopup) -> (대전이면) 매칭 대기 -> 실제 플레이(IRoundGame) ->
     /// 결과 화면(ResultPopup) -> 나가기(게임 선택으로) 또는 다시하기(같은 모드로 재도전).
     ///
@@ -100,6 +100,7 @@ namespace Match3
                 { GameKind.Simon, CreateGame<SimonGameManager>("SimonGameManager") },
                 { GameKind.Tetris, CreateGame<TetrisGameManager>("TetrisGameManager") },
                 { GameKind.Jigsaw, CreateGame<JigsawGameManager>("JigsawGameManager") },
+                { GameKind.CountryQuiz, CreateGame<CountryQuizGameManager>("CountryQuizGameManager") },
             };
             foreach (var game in games.Values)
                 game.RoundEnded += HandleRoundEnded;
