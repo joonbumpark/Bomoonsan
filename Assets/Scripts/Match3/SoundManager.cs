@@ -105,6 +105,8 @@ namespace Match3
         /// <summary>배경음악을 바꾼다. 이미 같은 곡이 나오고 있으면 처음부터 다시 틀지 않는다.</summary>
         public static void PlayBgm(Bgm bgm)
         {
+            StopOtherSounds();
+
             var self = Instance;
             if (self.currentBgm == bgm && self.bgmSource.isPlaying)
                 return;
@@ -116,6 +118,21 @@ namespace Match3
             self.currentBgm = bgm;
             self.bgmSource.clip = clip;
             self.bgmSource.Play();
+        }
+
+        /// <summary>
+        /// 마운틴 쪽 사운드 매니저(Mountains.SoundManager)는 씬이 바뀌어도 살아남아서, 미니게임에
+        /// 들어와도 마운틴 BGM/효과음이 계속 겹쳐 난다 - 미니게임 BGM을 틀 때마다 그쪽 소리를 끈다.
+        /// 마운틴 씬으로 돌아가면 그쪽 코드(MountainSceneBgm)가 자기 BGM을 다시 튼다.
+        /// </summary>
+        private static void StopOtherSounds()
+        {
+            var other = Mountains.SoundManager.Instance;
+            if (other == null)
+                return;
+
+            other.StopBgm(0.3f); // 재생 중인 곡이 없으면 아무것도 안 한다
+            other.StopAllSfx();
         }
 
         public static void StopBgm()
