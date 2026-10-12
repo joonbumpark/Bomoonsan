@@ -72,6 +72,7 @@ namespace Match3
         private NetworkIndicator networkIndicator;
 
         private bool isVersusMatch;
+        private bool searchingForMatch; // 대기열에 들어가 "matched"를 기다리는 중인지.
         private string currentMatchId;
         private bool awaitingMatchResult; // 이번 매치 점수를 제출하고 결과를 기다리는 중인지.
         private string currentOpponentName;
@@ -227,6 +228,7 @@ namespace Match3
                 network.LeaveQueue();
 
             isVersusMatch = false;
+            searchingForMatch = false;
             SetActivePanel(playModePopup.gameObject);
             playModePopup.Show();
         }
@@ -290,6 +292,7 @@ namespace Match3
         private void OnVersusPlayClicked()
         {
             isVersusMatch = true;
+            searchingForMatch = true;
             string name = ResolveNickname();
             ShowMatchmaking();
             EnsureConnectedThen(() => network.JoinQueue(name, selectedGame.ToServerId()));
@@ -334,9 +337,15 @@ namespace Match3
             CurrentGame.AbortRound();
         }
 
+        /// <summary>매칭 대기 팝업의 취소 - 상대를 찾는 중이면 대기열에서 나가고, 결과를
+        /// 기다리는 중이면(내 점수는 이미 제출) 기다림을 그만두고 뒤늦게 오는 결과는 무시한다.</summary>
         private void OnCancelMatchmakingClicked()
         {
-            network.LeaveQueue();
+            searchingForMatch = false;
+            awaitingMatchResult = false;
+            currentMatchId = null;
+            if (network.IsConnected)
+                network.LeaveQueue();
             ShowPlayModePopup();
         }
 
@@ -370,6 +379,15 @@ namespace Match3
 
         private void HandleMatched(string matchId, int seed, string opponentName)
         {
+            // 취소한 뒤에 뒤늦게 도착한 매칭(서버가 이미 짝을 지은 직후 취소한 경우) - 게임을
+            // 시작하지 않고 0점으로 바로 기권해서, 상대가 서버 타임아웃까지 결과를 기다리지 않게 한다.
+            if (!searchingForMatch)
+            {
+                network.SubmitScore(matchId, 0);
+                return;
+            }
+            searchingForMatch = false;
+
             currentMatchId = matchId;
             currentOpponentName = opponentName;
             ShowGame();

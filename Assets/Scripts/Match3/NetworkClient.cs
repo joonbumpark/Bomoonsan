@@ -34,6 +34,14 @@ namespace Match3
 
         private WebSocket socket;
 
+        // 연결돼 있는 동안 이 간격으로 서버에 ping을 보낸다 (서버는 모르는 메시지라 무시한다).
+        // 모바일(.NET ClientWebSocket)에서는 이쪽이 아무것도 안 보내고 받기만 기다리는 동안
+        // 서버가 보낸 메시지가 다음 전송 때까지 늦게 처리되는 경우가 있었다 - 매칭 대기 중
+        // "matched"가 안 오다가 취소(leave_queue)를 누르는 순간 들어와 게임이 시작되던 버그.
+        // 주기적으로 보내서 지연을 이 간격 이내로 묶고, 유휴 연결이 끊기는 것도 막는다.
+        private const float HeartbeatIntervalSeconds = 2f;
+        private float lastSendTime;
+
         public bool IsConnected => socket != null && socket.State == WebSocketState.Open;
         public bool IsConnecting => socket != null && socket.State == WebSocketState.Connecting;
 
@@ -63,6 +71,9 @@ namespace Match3
             // WebGL에서는 브라우저가 메시지를 직접 콜백으로 밀어주므로 큐를 돌릴 필요가 없다.
             socket?.DispatchMessageQueue();
 #endif
+
+            if (IsConnected && Time.unscaledTime - lastSendTime >= HeartbeatIntervalSeconds)
+                SendJson(new SimpleMessage { type = "ping" });
         }
 
         private void HandleMessage(byte[] data)
@@ -141,6 +152,7 @@ namespace Match3
                 OnError?.Invoke("서버에 연결되어 있지 않습니다.");
                 return;
             }
+            lastSendTime = Time.unscaledTime;
             socket.SendText(JsonUtility.ToJson(message));
         }
 
