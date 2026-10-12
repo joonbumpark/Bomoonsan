@@ -128,8 +128,8 @@ namespace Match3.EditorTools
 
         /// <summary>
         /// 로고가 그려진 배경용: 그림 전체가 보이는 크기에서 조금만(CoverFitter.maxOverscale) 키우고
-        /// 위쪽 기준으로 붙여 로고가 잘리지 않게 한다. 그래도 남는 공간은 바로 뒤에 같은 그림을
-        /// 어둡게 화면 가득 깐 "BackgroundFill"이 채운다.
+        /// 위쪽 기준으로 붙여 로고가 잘리지 않게 한다. 그래도 남는 공간은 바로 뒤에 깐 검은
+        /// "BackgroundFill"이 채운다 (같은 그림을 깔면 잘린 그림이 겹쳐 보여 어색했다).
         /// </summary>
         private static bool MakeLogoSafeCover(Transform target, string owner)
         {
@@ -169,8 +169,8 @@ namespace Match3.EditorTools
             fillTf.SetSiblingIndex(target.GetSiblingIndex());
 
             var fill = fillTf.GetComponent<Image>();
-            fill.sprite = image.sprite;
-            fill.color = new Color(0.45f, 0.45f, 0.45f, 1f);
+            fill.sprite = null;
+            fill.color = Color.black;
             fill.raycastTarget = false;
 
             var fillRt = (RectTransform)fillTf;
@@ -180,13 +180,9 @@ namespace Match3.EditorTools
             fillRt.anchoredPosition = Vector2.zero;
             fillRt.sizeDelta = Vector2.zero;
 
-            var fitter = fillTf.GetComponent<AspectRatioFitter>();
-            if (fitter == null)
-                fitter = fillTf.gameObject.AddComponent<AspectRatioFitter>();
-            var so = new SerializedObject(fitter);
-            so.FindProperty("m_AspectMode").intValue = (int)AspectRatioFitter.AspectMode.EnvelopeParent;
-            so.FindProperty("m_AspectRatio").floatValue = aspect;
-            so.ApplyModifiedPropertiesWithoutUndo();
+            var fillFitter = fillTf.GetComponent<AspectRatioFitter>();
+            if (fillFitter != null)
+                Object.DestroyImmediate(fillFitter);
             return true;
         }
 
