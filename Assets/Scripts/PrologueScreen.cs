@@ -5,8 +5,9 @@ using UnityEngine.UI;
 
 namespace Mountains
 {
-    // 타이틀 화면에서 클릭하면 프롤로그 이미지를 한 장씩 보여주고, 마지막 장 다음 클릭에
-    // 게임 씬으로 넘어간다. TitleScene의 빈 오브젝트에 붙여서 쓴다.
+    // 타이틀 화면에서 클릭하면 인트로 영상(introVideoFile)을 재생하고, 끝나면 게임 씬으로 넘어간다.
+    // introVideoFile을 비워 두면 예전처럼 프롤로그 이미지를 한 장씩 보여주고, 마지막 장 다음 클릭에
+    // 넘어간다. TitleScene의 빈 오브젝트에 붙여서 쓴다.
     //
     // 상태를 인덱스 하나로 표현한다: -1이면 아직 타이틀, 0 이상이면 그 번째 이미지.
     // "타이틀 클릭"과 "다음 이미지"가 결국 같은 동작(한 칸 전진)이라 분기를 나눌 필요가 없다.
@@ -16,6 +17,14 @@ namespace Mountains
         public PrologueData data;
         [Tooltip("프롤로그가 끝나면 이동할 씬. File > Build Settings 목록에 있어야 한다.")]
         public string nextSceneName = "Mountain 5";
+
+        [Header("인트로 영상")]
+        [Tooltip("Assets/StreamingAssets 기준 영상 파일 이름. 비워 두면 영상 대신 data의 이미지들을 보여준다.")]
+        public string introVideoFile = "Intro.mp4";
+        [Tooltip("영상 도중 화면을 누르면 건너뛴다.")]
+        public bool skipVideoOnTap = true;
+        [Tooltip("영상이 시작되고 이 시간(초)이 지나야 건너뛸 수 있다 — 타이틀을 누른 손가락이 바로 건너뛰지 않게.")]
+        [Min(0f)] public float skipDelay = 1f;
 
         [Header("표시")]
         [Tooltip("이미지가 그려질 Image. 화면 전체를 덮도록 배치한다.")]
@@ -35,6 +44,9 @@ namespace Mountains
         int _index = -1;
         float _readyTime;
         bool _leaving;
+
+        VideoImage _video;
+        float _videoStartTime;
 
         void OnEnable()
         {
@@ -65,12 +77,27 @@ namespace Mountains
                 return;
             }
 
+            if (_video != null)
+            {
+                if (skipVideoOnTap && Time.unscaledTime - _videoStartTime >= skipDelay)
+                {
+                    Leave();
+                }
+                return;
+            }
+
             Advance();
         }
 
         void Advance()
         {
             _index++;
+
+            if (_index == 0 && !string.IsNullOrEmpty(introVideoFile))
+            {
+                PlayIntroVideo();
+                return;
+            }
 
             if (data == null || data.images == null || _index >= data.images.Length)
             {
@@ -111,9 +138,58 @@ namespace Mountains
             imageTarget.DOFade(1f, duration);
         }
 
+        // 프롤로그 패널 위에 영상 칸을 만들어 재생한다. 화면 비율이 영상과 달라도 영상 전체가 보이게
+        // 맞추고(FitInParent), 남는 위아래/좌우는 패널의 검은 배경(Backdrop)이 채운다.
+        void PlayIntroVideo()
+        {
+            SetPanelVisible(true);
+            if (imageTarget != null)
+            {
+                imageTarget.enabled = false;
+            }
+
+            var parent = imageTarget != null ? imageTarget.transform.parent : (canvasGroup != null ? canvasGroup.transform : transform);
+            var go = new GameObject("IntroVideo", typeof(RectTransform));
+            // 필드를 다 채운 뒤에 켜야 VideoImage가 올바른 설정으로 재생을 시작한다.
+            go.SetActive(false);
+
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            var fitter = go.AddComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fitter.aspectRatio = 406f / 720f; // 준비가 끝나면 VideoImage가 실제 영상 비율로 바꾼다.
+
+            _video = go.AddComponent<VideoImage>();
+            _video.fileName = introVideoFile;
+            _video.loop = false;
+            _video.mute = false;
+            _video.playOnEnable = true;
+            _video.matchAspect = true;
+            _video.Finished += Leave;
+
+            _videoStartTime = Time.unscaledTime;
+            go.SetActive(true);
+        }
+
         void Leave()
         {
+            if (_leaving)
+            {
+                return;
+            }
+
             _leaving = true;
+
+            if (_video != null)
+            {
+                _video.Finished -= Leave;
+                _video.Stop();
+            }
 
             if (string.IsNullOrEmpty(nextSceneName))
             {
