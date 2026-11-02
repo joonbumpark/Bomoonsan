@@ -68,7 +68,7 @@ namespace Match3
             GameKind.Tetris => "테트리스",
             GameKind.Jigsaw => "직소 퍼즐",
             GameKind.CountryQuiz => "나라찾기",
-            GameKind.FruitNinja => "과일 썰기",
+            GameKind.FruitNinja => "복주머니 자르기",
             _ => kind.ToString(),
         };
 
