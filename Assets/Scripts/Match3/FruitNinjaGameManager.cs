@@ -78,7 +78,7 @@ namespace Match3
         }
 
         private const float BombRadius = 62f;
-        private const float PouchRadius = 72f;
+        private const float PouchRadius = 80f;
         private const string PouchSpritePath = "Sprites/FruitNinja/pouch";
         private static readonly Color PouchTextColor = new Color(1f, 0.85f, 0.3f);
         private static readonly Color BombColor = new Color(0.16f, 0.16f, 0.20f);
