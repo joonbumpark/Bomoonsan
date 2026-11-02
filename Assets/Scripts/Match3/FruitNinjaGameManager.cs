@@ -11,11 +11,13 @@ namespace Match3
     /// 과일 썰기(후르츠닌자 스타일). 화면 아래에서 과일이 포물선으로 튀어 오르면 손가락으로
     /// 쓱 그어서 자른다. 과일 하나당 1점, 한 번 긋기에 3개 이상 자르면 그 개수만큼 콤보
     /// 보너스. 가끔 섞여 나오는 폭탄을 자르면 bombPenalty만큼 깎인다(0점 밑으로는 안 내려감).
-    /// 놓친 과일은 감점이 없다.
+    /// 드물게 나오는 복주머니는 자르면 pouchPoints점. 놓친 과일/복주머니는 감점이 없다.
     ///
     /// 복주머니 잡기처럼 시드로 "언제 어디서 무엇이 어떤 궤적으로 뜨는지"(스폰 스케줄)를
     /// 정하고, 플레이어 입력과 무관하게 그대로 진행된다. 과일은 따로 아트 없이 원형
     /// 스프라이트에 색을 입혀 그리고, 잘린 반쪽은 Filled 이미지로 원을 절반만 그려 만든다.
+    /// 복주머니는 Resources/Sprites/FruitNinja/pouch 이미지를 쓰고, 없으면 매치3의 빨간
+    /// 복주머니(TileArt)로 대신한다 - 반쪽도 같은 이미지를 절반만 채워 만든다.
     /// </summary>
     public class FruitNinjaGameManager : MonoBehaviour, IRoundGame
     {
@@ -24,6 +26,7 @@ namespace Match3
         public int bombPenalty = 10;
         [Tooltip("한 번 긋기에 이 개수 이상 자르면 자른 개수만큼 보너스")]
         public int comboMinCount = 3;
+        public int pouchPoints = 5;
 
         [Header("난이도 (시간이 지날수록 이 값들 사이로 서서히 어려워진다)")]
         public float initialSpawnInterval = 1.2f;
@@ -32,6 +35,8 @@ namespace Match3
         public int maxWaveSize = 4;
         public float initialBombChance = 0.08f;
         public float maxBombChance = 0.2f;
+        [Tooltip("폭탄이 아닌 칸 하나가 복주머니로 나올 확률")]
+        public float pouchChance = 0.08f;
         [Tooltip("라운드 시작 후 이 시간 동안은 폭탄이 안 나온다")]
         public float bombFreeSeconds = 5f;
         public float difficultyRampSeconds = 40f;
@@ -65,7 +70,17 @@ namespace Match3
             new FruitKind(new Color(0.56f, 0.26f, 0.66f), new Color(0.88f, 0.78f, 0.42f), 54f), // 자두
         };
 
+        private enum FlyerType
+        {
+            Fruit,
+            Bomb,
+            Pouch,
+        }
+
         private const float BombRadius = 62f;
+        private const float PouchRadius = 72f;
+        private const string PouchSpritePath = "Sprites/FruitNinja/pouch";
+        private static readonly Color PouchTextColor = new Color(1f, 0.85f, 0.3f);
         private static readonly Color BombColor = new Color(0.16f, 0.16f, 0.20f);
         private static readonly Color SparkColor = new Color(1f, 0.55f, 0.15f);
         private static readonly Color TrailColor = new Color(1f, 1f, 1f, 0.9f);
@@ -90,8 +105,8 @@ namespace Match3
             public float Angle;
             public float Spin;
             public float Radius;
-            public bool IsBomb;
-            public int Kind;
+            public FlyerType Type;
+            public int Kind; // Fruit일 때만 FruitKinds 인덱스
             public RectTransform Spark; // 폭탄 심지 불꽃(깜빡임용)
         }
 
@@ -129,6 +144,19 @@ namespace Match3
 
         private static Sprite circleSprite;
         private static Sprite CircleSprite => circleSprite != null ? circleSprite : (circleSprite = CreateCircleSprite());
+
+        private static Sprite pouchSprite;
+        private static Sprite PouchSprite
+        {
+            get
+            {
+                if (pouchSprite == null)
+                    pouchSprite = Resources.Load<Sprite>(PouchSpritePath);
+                if (pouchSprite == null)
+                    pouchSprite = TileArt.NormalFor(0);
+                return pouchSprite;
+            }
+        }
 
         private void Awake()
         {
@@ -220,18 +248,26 @@ namespace Match3
                     // 한 번에 폭탄은 최대 하나, 과일 없이 폭탄만 뜨는 일은 없게.
                     bool bomb = !bombPlaced && waveSize > 1 && i == waveSize - 1 && rng.NextDouble() < bombChance * waveSize;
                     bombPlaced |= bomb;
-                    Launch(bomb);
+                    if (bomb)
+                        Launch(FlyerType.Bomb);
+                    else
+                        Launch(rng.NextDouble() < pouchChance ? FlyerType.Pouch : FlyerType.Fruit);
                 }
 
                 yield return new WaitForSeconds(interval);
             }
         }
 
-        private void Launch(bool isBomb)
+        private void Launch(FlyerType type)
         {
             var rect = boardRoot.rect;
-            int kind = isBomb ? -1 : rng.Next(FruitKinds.Length);
-            float radius = isBomb ? BombRadius : FruitKinds[kind].Radius;
+            int kind = type == FlyerType.Fruit ? rng.Next(FruitKinds.Length) : -1;
+            float radius = type switch
+            {
+                FlyerType.Bomb => BombRadius,
+                FlyerType.Pouch => PouchRadius,
+                _ => FruitKinds[kind].Radius,
+            };
 
             float halfW = rect.width / 2f;
             float startX = Mathf.Lerp(-halfW * 0.75f, halfW * 0.75f, (float)rng.NextDouble());
@@ -251,10 +287,15 @@ namespace Match3
                 Angle = (float)rng.NextDouble() * 360f,
                 Spin = Mathf.Lerp(-180f, 180f, (float)rng.NextDouble()),
                 Radius = radius,
-                IsBomb = isBomb,
+                Type = type,
                 Kind = kind,
             };
-            flyer.Rt = isBomb ? CreateBombVisual(flyer) : CreateFruitVisual(FruitKinds[kind]);
+            flyer.Rt = type switch
+            {
+                FlyerType.Bomb => CreateBombVisual(flyer),
+                FlyerType.Pouch => CreatePouchVisual(),
+                _ => CreateFruitVisual(FruitKinds[kind]),
+            };
             ApplyTransform(flyer);
             flyers.Add(flyer);
         }
@@ -313,10 +354,18 @@ namespace Match3
                     continue;
 
                 flyers.RemoveAt(i);
-                if (f.IsBomb)
-                    SliceBomb(f);
-                else
-                    SliceFruit(f, dir);
+                switch (f.Type)
+                {
+                    case FlyerType.Bomb:
+                        SliceBomb(f);
+                        break;
+                    case FlyerType.Pouch:
+                        SlicePouch(f, dir);
+                        break;
+                    default:
+                        SliceFruit(f, dir);
+                        break;
+                }
             }
         }
 
@@ -346,10 +395,28 @@ namespace Match3
             // 긋는 방향을 따라 둘로 갈라져 서로 반대쪽으로 벌어지며 떨어진다.
             float cutAngle = Mathf.Atan2(swipeDir.y, swipeDir.x) * Mathf.Rad2Deg;
             Vector2 normal = new Vector2(-swipeDir.y, swipeDir.x).normalized;
-            SpawnHalf(f, kind, cutAngle, Image.OriginVertical.Top, normal);
-            SpawnHalf(f, kind, cutAngle, Image.OriginVertical.Bottom, -normal);
+            SpawnHalf(f, cutAngle, Image.OriginVertical.Top, normal, rt => CreateFruitHalfVisual(rt, kind, Image.OriginVertical.Top));
+            SpawnHalf(f, cutAngle, Image.OriginVertical.Bottom, -normal, rt => CreateFruitHalfVisual(rt, kind, Image.OriginVertical.Bottom));
 
             Match3EffectSpawner.SpawnPop(this, fxLayer, f.Pos, kind.Flesh);
+            Destroy(f.Rt.gameObject);
+        }
+
+        private void SlicePouch(Flyer f, Vector2 swipeDir)
+        {
+            score += pouchPoints;
+            strokeSliceCount++;
+            strokeLastSlicePos = f.Pos;
+            UpdateHud();
+            SoundManager.Play(Sfx.Match3Item);
+
+            float cutAngle = Mathf.Atan2(swipeDir.y, swipeDir.x) * Mathf.Rad2Deg;
+            Vector2 normal = new Vector2(-swipeDir.y, swipeDir.x).normalized;
+            SpawnHalf(f, cutAngle, Image.OriginVertical.Top, normal, rt => CreateHalfImage("Pouch", rt, PouchSprite, Color.white, 1f, Image.OriginVertical.Top));
+            SpawnHalf(f, cutAngle, Image.OriginVertical.Bottom, -normal, rt => CreateHalfImage("Pouch", rt, PouchSprite, Color.white, 1f, Image.OriginVertical.Bottom));
+
+            Match3EffectSpawner.SpawnCelebration(this, fxLayer, f.Pos);
+            Match3EffectSpawner.SpawnPopupText(this, fxLayer, f.Pos, $"+{pouchPoints}", PouchTextColor, 110f);
             Destroy(f.Rt.gameObject);
         }
 
@@ -365,15 +432,12 @@ namespace Match3
             Destroy(f.Rt.gameObject);
         }
 
-        private void SpawnHalf(Flyer source, FruitKind kind, float cutAngle, Image.OriginVertical keep, Vector2 push)
+        private void SpawnHalf(Flyer source, float cutAngle, Image.OriginVertical keep, Vector2 push, Action<RectTransform> buildVisual)
         {
-            var rt = UIFactory.CreateRect("FruitHalf", pieceLayer);
+            var rt = UIFactory.CreateRect("Half", pieceLayer);
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = Vector2.one * source.Radius * 2f;
-
-            // 껍질(바깥 원) 위에 과육(조금 작은 원)을 겹치고, 둘 다 같은 쪽 절반만 채운다.
-            CreateHalfCircle("Skin", rt, kind.Skin, 1f, keep);
-            CreateHalfCircle("Flesh", rt, kind.Flesh, 0.86f, keep);
+            buildVisual(rt);
 
             var piece = new Flyer
             {
@@ -388,10 +452,18 @@ namespace Match3
             pieces.Add(piece);
         }
 
-        private static void CreateHalfCircle(string name, RectTransform parent, Color color, float scale, Image.OriginVertical keep)
+        /// <summary>껍질(바깥 원) 위에 과육(조금 작은 원)을 겹치고, 둘 다 같은 쪽 절반만 채운다.</summary>
+        private static void CreateFruitHalfVisual(RectTransform parent, FruitKind kind, Image.OriginVertical keep)
+        {
+            CreateHalfImage("Skin", parent, CircleSprite, kind.Skin, 1f, keep);
+            CreateHalfImage("Flesh", parent, CircleSprite, kind.Flesh, 0.86f, keep);
+        }
+
+        private static void CreateHalfImage(string name, RectTransform parent, Sprite sprite, Color color, float scale, Image.OriginVertical keep)
         {
             var image = UIFactory.CreateImage(name, parent, color);
-            image.sprite = CircleSprite;
+            image.sprite = sprite;
+            image.preserveAspect = true;
             image.type = Image.Type.Filled;
             image.fillMethod = Image.FillMethod.Vertical;
             image.fillOrigin = (int)keep;
@@ -536,6 +608,19 @@ namespace Match3
             var shine = CreateCircle("Shine", body, new Color(1f, 1f, 1f, 0.35f), kind.Radius * 0.55f);
             shine.anchoredPosition = new Vector2(-kind.Radius * 0.38f, kind.Radius * 0.38f);
             return body;
+        }
+
+        private RectTransform CreatePouchVisual()
+        {
+            var image = UIFactory.CreateImage("Pouch", flyerLayer, Color.white);
+            image.sprite = PouchSprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+
+            var rt = image.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = Vector2.one * PouchRadius * 2f;
+            return rt;
         }
 
         private RectTransform CreateBombVisual(Flyer flyer)
