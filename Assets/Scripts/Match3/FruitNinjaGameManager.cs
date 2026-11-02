@@ -87,8 +87,7 @@ namespace Match3
         private static readonly Color ComboTextColor = new Color(1f, 0.85f, 0.3f);
         private static readonly Color PenaltyTextColor = new Color(1f, 0.35f, 0.3f);
 
-        private const float TopBarHeight = 220f;
-        private const float HintBarHeight = 100f;
+        private const string CanvasPrefabPath = "Prefabs/FruitNinjaCanvas";
         private const float TrailWidth = 16f;
         private const float TrailLife = 0.18f;
         private const float HalfSplitSpeed = 260f;
@@ -558,16 +557,26 @@ namespace Match3
 
         private void BuildUI()
         {
-            canvasRoot = UIFactory.CreateGameCanvasRoot(transform, "FruitNinjaCanvas");
-            var background = canvasRoot.transform.Find("Background").GetComponent<Image>();
-            if (UIArt.MinigameBackground != null)
-            {
-                background.sprite = UIArt.MinigameBackground;
-                background.color = Color.white;
-            }
+            // 배경/점수바(TopBar)/안내바는 매치3와 같은 모양을 쓰려고 Match3Canvas를 복제한
+            // 프리팹을 띄우고, 과일이 날아다니는 판만 코드로 배경 바로 위에 끼워 넣는다.
+            canvasRoot = Instantiate(Resources.Load<GameObject>(CanvasPrefabPath), transform, false);
+            canvasRoot.name = "FruitNinjaCanvas";
+            foreach (var scaler in canvasRoot.GetComponentsInChildren<CanvasScaler>(true))
+                Mountains.ResponsiveCanvas.Apply(scaler);
 
-            boardRoot = UIFactory.CreateRect("BoardRoot", canvasRoot.transform);
+            var root = canvasRoot.transform;
+            scoreText = root.Find("TopBar/ScoreText").GetComponent<TextMeshProUGUI>();
+            timerText = root.Find("TopBar/TimerText").GetComponent<TextMeshProUGUI>();
+
+            // 점수바/안내바 위로 그어도 칼질이 끊기지 않게 입력은 전부 판으로 흘려보낸다.
+            foreach (var graphic in root.Find("TopBar").GetComponentsInChildren<Graphic>(true))
+                graphic.raycastTarget = false;
+            foreach (var graphic in root.Find("HintBg").GetComponentsInChildren<Graphic>(true))
+                graphic.raycastTarget = false;
+
+            boardRoot = UIFactory.CreateRect("BoardRoot", root);
             UIFactory.StretchFull(boardRoot);
+            boardRoot.SetSiblingIndex(root.Find("Background").GetSiblingIndex() + 1);
 
             // 판 전체를 덮는 투명 입력 영역 - 과일/칼자국은 raycastTarget을 꺼서 입력을 가로채지 않는다.
             var swipeImage = UIFactory.CreateImage("SwipeArea", boardRoot, Color.clear);
@@ -585,12 +594,6 @@ namespace Match3
             flashImage = UIFactory.CreateImage("BombFlash", boardRoot, Color.clear);
             flashImage.raycastTarget = false;
             UIFactory.StretchFull(flashImage.rectTransform);
-
-            UIFactory.CreateGameTopBar(canvasRoot.transform, TopBarHeight, out scoreText, out timerText);
-            scoreText.raycastTarget = false;
-            timerText.raycastTarget = false;
-            var hint = UIFactory.CreateGameHint(canvasRoot.transform, HintBarHeight, "과일을 쓱 그어서 썰어요! 폭탄은 피하세요");
-            hint.raycastTarget = false;
         }
 
         private RectTransform CreateLayer(string name)
