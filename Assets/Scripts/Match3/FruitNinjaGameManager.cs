@@ -36,7 +36,7 @@ namespace Match3
         public float initialBombChance = 0.08f;
         public float maxBombChance = 0.2f;
         [Tooltip("폭탄이 아닌 칸 하나가 복주머니로 나올 확률")]
-        public float pouchChance = 0.08f;
+        public float pouchChance = 0.16f;
         [Tooltip("라운드 시작 후 이 시간 동안은 폭탄이 안 나온다")]
         public float bombFreeSeconds = 5f;
         public float difficultyRampSeconds = 40f;
@@ -62,12 +62,12 @@ namespace Match3
 
         private static readonly FruitKind[] FruitKinds =
         {
-            new FruitKind(new Color(0.22f, 0.58f, 0.24f), new Color(0.95f, 0.30f, 0.36f), 88f), // 수박
-            new FruitKind(new Color(1.00f, 0.58f, 0.10f), new Color(1.00f, 0.78f, 0.35f), 66f), // 오렌지
-            new FruitKind(new Color(0.86f, 0.16f, 0.18f), new Color(1.00f, 0.95f, 0.78f), 62f), // 사과
-            new FruitKind(new Color(0.98f, 0.88f, 0.20f), new Color(1.00f, 0.97f, 0.62f), 58f), // 레몬
-            new FruitKind(new Color(0.55f, 0.40f, 0.22f), new Color(0.56f, 0.80f, 0.26f), 56f), // 키위
-            new FruitKind(new Color(0.56f, 0.26f, 0.66f), new Color(0.88f, 0.78f, 0.42f), 54f), // 자두
+            new FruitKind(new Color(0.22f, 0.58f, 0.24f), new Color(0.95f, 0.30f, 0.36f), 176f), // 수박
+            new FruitKind(new Color(1.00f, 0.58f, 0.10f), new Color(1.00f, 0.78f, 0.35f), 132f), // 오렌지
+            new FruitKind(new Color(0.86f, 0.16f, 0.18f), new Color(1.00f, 0.95f, 0.78f), 124f), // 사과
+            new FruitKind(new Color(0.98f, 0.88f, 0.20f), new Color(1.00f, 0.97f, 0.62f), 116f), // 레몬
+            new FruitKind(new Color(0.55f, 0.40f, 0.22f), new Color(0.56f, 0.80f, 0.26f), 112f), // 키위
+            new FruitKind(new Color(0.56f, 0.26f, 0.66f), new Color(0.88f, 0.78f, 0.42f), 108f), // 자두
         };
 
         private enum FlyerType
@@ -77,8 +77,8 @@ namespace Match3
             Pouch,
         }
 
-        private const float BombRadius = 62f;
-        private const float PouchRadius = 80f;
+        private const float BombRadius = 124f;
+        private const float PouchRadius = 160f;
         private const string PouchSpritePath = "Sprites/FruitNinja/pouch";
         private static readonly Color PouchTextColor = new Color(1f, 0.85f, 0.3f);
         private static readonly Color BombColor = new Color(0.16f, 0.16f, 0.20f);
@@ -269,7 +269,9 @@ namespace Match3
             };
 
             float halfW = rect.width / 2f;
-            float startX = Mathf.Lerp(-halfW * 0.75f, halfW * 0.75f, (float)rng.NextDouble());
+            // 큰 과일도 화면 밖으로 삐져나가지 않게 반지름만큼 안쪽에서 출발한다.
+            float spawnHalfW = Mathf.Max(0f, Mathf.Min(halfW * 0.75f, halfW - radius));
+            float startX = Mathf.Lerp(-spawnHalfW, spawnHalfW, (float)rng.NextDouble());
             float startY = rect.yMin - radius;
 
             // 최고점 높이를 먼저 정하고, 거기 도달하는 속도/시간으로 역산한다.
