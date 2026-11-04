@@ -15,3 +15,5 @@ MonoBehaviour:
   lines:
   - character: {fileID: 11400000, guid: 7471edc1d1eb0fb48b424f03bd5ddbeb, type: 2}
     text: "\uC5B4!? \uB354 \uC774\uC0C1 \uAE38\uC774 \uC5C6\uC5B4!!"
+  - character: {fileID: 11400000, guid: f6cf3f2bd91ef184dbd1099a383ca3b3, type: 2}
+    text: "\uBC24 \uB5A8\uC5B4\uC9C4\uB2E4!!\n\uC870\uC2EC\uD574!!"

@@ -1,0 +1,9 @@
+Hand.png
+  Noto Emoji 3D "backhand index pointing up: light skin tone" (U+1F446 U+1F3FB)
+  https://github.com/googlefonts/noto-emoji - Apache License 2.0
+  흰 외곽선/그림자를 덧붙여 가공함.
+
+Chestnut.png
+  Noto Emoji 3D "chestnut" (U+1F330)
+  https://github.com/googlefonts/noto-emoji - Apache License 2.0
+  흰 외곽선/그림자를 덧붙이고 256px로 줄임.
