@@ -101,7 +101,7 @@ namespace Match3
                 { GameKind.Simon, CreateGame<SimonGameManager>("SimonGameManager") },
                 { GameKind.Tetris, CreateGame<TetrisGameManager>("TetrisGameManager") },
                 { GameKind.Jigsaw, CreateGame<JigsawGameManager>("JigsawGameManager") },
-                { GameKind.CountryQuiz, CreateGame<CountryQuizGameManager>("CountryQuizGameManager") },
+                { GameKind.FruitNinja, CreateGame<FruitNinjaGameManager>("FruitNinjaGameManager") },
             };
             foreach (var game in games.Values)
                 game.RoundEnded += HandleRoundEnded;

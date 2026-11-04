@@ -31,6 +31,7 @@ namespace Match3.EditorTools
             ("Assets/Resources/Prefabs/TetrisCanvas.prefab", "Background"),
             ("Assets/Resources/Prefabs/JigsawCanvas.prefab", "Background"),
             ("Assets/Resources/Prefabs/CountryQuizCanvas.prefab", "Background"),
+            ("Assets/Resources/Prefabs/FruitNinjaCanvas.prefab", "Background"),
         };
 
         // logoInArt: 그림 안에 로고/글자가 있어 많이 잘리면 안 되는 배경 (MakeLogoSafeCover).
