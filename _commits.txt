@@ -1,2 +1,0 @@
-aa1d4ea no message
-4c09161 모바일 발열 대응: 모바일 전용 URP/렌더러, 30fps, Bloom·SSAO 끄기, 식생 거리 단축

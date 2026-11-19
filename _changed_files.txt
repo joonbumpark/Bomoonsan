@@ -1,9 +1,0 @@
-M	Assets/Editor/FogSetup.cs
-M	Assets/Scripts/GameManager.cs
-M	Assets/Scripts/VegetationScatter.cs
-M	Assets/Scripts/VegetationScatterSettings.cs
-A	Assets/Settings/URP-Mobile-Renderer.asset
-A	Assets/Settings/URP-Mobile-Renderer.asset.meta
-A	Assets/Settings/URP-Mobile.asset
-A	Assets/Settings/URP-Mobile.asset.meta
-M	ProjectSettings/QualitySettings.asset
