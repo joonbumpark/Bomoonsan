@@ -12,8 +12,7 @@ namespace Mountains
     // 카메라 스왑/복귀, triggerOnce, 태그 체크는 DialogTrigger와 동일한 방식을 그대로 쓴다.
     //
     // 액션은 [SerializeReference]로 이 컴포넌트 안에 직접 들어간다 — 액션마다 자식
-    // GameObject를 만들 필요가 없다. 예전 방식(자식 오브젝트 + 컴포넌트)으로 설정해둔
-    // 트리거를 위해 legacyActions 경로를 마이그레이션이 끝날 때까지 남겨둔다.
+    // GameObject를 만들 필요가 없다.
     [RequireComponent(typeof(Collider))]
     public class EventTrigger : MonoBehaviour
     {
@@ -25,31 +24,8 @@ namespace Mountains
 
             [Tooltip("이 스텝 안의 액션들은 전부 동시에(병렬) 실행되고, 모두 끝나야 다음 스텝으로 넘어간다. " +
                 "+로 칸을 늘린 뒤 오른쪽 드롭다운에서 액션 종류를 고른다.")]
+            // 필드 이름(newActions)은 기존 씬 데이터와 맞추기 위해 그대로 둔다.
             [SerializeReference, SubclassSelector] public TriggerAction[] newActions = new TriggerAction[0];
-
-            [Tooltip("예전 방식(자식 오브젝트에 붙인 컴포넌트)으로 만든 액션들. 마이그레이션 " +
-                "메뉴를 돌리면 위 목록으로 옮겨진다. 위 목록이 비어 있을 때만 실행된다.")]
-
-            [HideInInspector]public LegacyTriggerAction[] actions = new LegacyTriggerAction[0];
-
-            public bool HasNewActions
-            {
-                get
-                {
-                    if (newActions == null)
-                    {
-                        return false;
-                    }
-                    foreach (var action in newActions)
-                    {
-                        if (action != null)
-                        {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            }
         }
 
         [Tooltip("켜두면 한 번 발동한 뒤로는 다시 트리거되지 않는다.")]
@@ -150,15 +126,9 @@ namespace Mountains
 
         static UniTask RunStepAsync(ActionStep step, TriggerContext context, CancellationToken cancellationToken)
         {
-            if (step == null)
+            if (step?.newActions == null)
             {
                 return UniTask.CompletedTask;
-            }
-
-            // 마이그레이션 전 트리거는 예전 경로로 돈다. 둘 다 있으면 새 목록이 우선이다.
-            if (!step.HasNewActions)
-            {
-                return RunLegacyStepAsync(step);
             }
 
             var tasks = new List<UniTask>(step.newActions.Length);
@@ -171,29 +141,6 @@ namespace Mountains
             }
 
             return UniTask.WhenAll(tasks);
-        }
-
-        // 예전 콜백 방식(LegacyTriggerAction.Execute)을 await할 수 있게 감싼다.
-        static UniTask RunLegacyStepAsync(ActionStep step)
-        {
-            if (step.actions == null || step.actions.Length == 0)
-            {
-                return UniTask.CompletedTask;
-            }
-
-            var completion = new UniTaskCompletionSource();
-            var counter = new CompletionCounter(step.actions.Length, () => completion.TrySetResult());
-            foreach (var action in step.actions)
-            {
-                if (action == null)
-                {
-                    counter.Signal();
-                    continue;
-                }
-                action.Execute(counter.Signal);
-            }
-
-            return completion.Task;
         }
 
         // 시퀀스 도중에 이 오브젝트가 꺼지거나 파괴되면 잠금이 남는다 — 그러면 조작이 영영

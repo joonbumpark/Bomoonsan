@@ -5,8 +5,8 @@ namespace Match3
 {
     /// <summary>
     /// 서버와 통신 중(연결 시도/응답 대기)일 때 화면 우상단에 표시하는 로딩 스피너.
-    /// 프리팹/씬 배치 없이 Create()로 코드에서 바로 만든다. 아이콘은 임시로 한쪽이 비어
-    /// 있는 고리(원의 270도만 채운 모양)를 돌려서 "로딩 중"처럼 보이게 했다 - 나중에 실제
+    /// 프리팹/씬 배치 없이 Create()로 코드에서 바로 만든다. 기본 아이콘은 한쪽이 비어
+    /// 있는 고리(원의 270도만 채운 모양)를 돌려서 "로딩 중"처럼 보이게 한다 - 다른
     /// 아트로 바꾸려면 Icon.sprite만 갈아끼우면 된다.
     ///
     /// 여러 군데서 동시에 Show()를 부를 수 있어 참조 카운트로 관리한다 - Show()한 만큼
@@ -24,7 +24,7 @@ namespace Match3
         private int activeCount;
 
         /// <summary>overrideIcon을 주면(AppFlowManager 인스펙터의 networkIndicatorIcon
-        /// 필드로 연결) 임시 도형 대신 그 스프라이트를 쓴다.</summary>
+        /// 필드로 연결) 기본 도형 대신 그 스프라이트를 쓴다.</summary>
         public static NetworkIndicator Create(Transform parent, Sprite overrideIcon = null)
         {
             var go = new GameObject("NetworkIndicator", typeof(RectTransform));

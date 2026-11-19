@@ -38,7 +38,7 @@ namespace Mountains
             "Bloom 임계값이 1이라 거의 아무것도 번지지 않으면서 축소/확대 패스 비용만 든다.")]
         public bool disableBloomOnMobile = true;
 
-        [Header("NPC 스폰 (테스트용)")]
+        [Header("NPC 스폰")]
         [Tooltip("여러 개 등록해서 한 번에 여러 NPC를 스폰할 수 있다.")]
         public NpcSpawnEntry[] npcSpawns = new NpcSpawnEntry[0];
 

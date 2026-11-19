@@ -65,7 +65,7 @@ namespace Match3
             GameKind.Match3 => "3매치 퍼즐",
             GameKind.Whack => "복주머니 잡기",
             GameKind.Simon => "순서 기억하기",
-            GameKind.Tetris => "테트리스",
+            GameKind.Tetris => "블록 쌓기",
             GameKind.Jigsaw => "직소 퍼즐",
             GameKind.CountryQuiz => "나라찾기",
             GameKind.FruitNinja => "복주머니 자르기",

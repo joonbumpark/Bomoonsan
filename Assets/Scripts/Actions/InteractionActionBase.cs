@@ -15,8 +15,8 @@ namespace Mountains
     //   - 입력은 PointerInput으로 매 프레임 직접 읽는다.
     //   - 어떤 경로로 끝나든(성공, 시간 초과, 트리거 파괴로 취소) finally에서 UI와 입력 잠금을 정리한다.
     //
-    // 손가락 그림(handSprite)을 비워 두면 임시로 동그라미를 그린다 — 실제 이미지가 정해지면
-    // 인스펙터에서 스프라이트만 넣으면 된다.
+    // 손가락 그림(handSprite)을 비워 두면 기본 그림(Resources/Interaction/Hand)을 쓰고,
+    // 그것마저 없으면 코드로 만든 동그라미로 대신한다.
     [Serializable]
     public abstract class InteractionActionBase : TriggerAction
     {
@@ -29,7 +29,7 @@ namespace Mountains
         [Range(0f, 1f)] public float dimAlpha = 0.35f;
 
         [Header("손가락 그림")]
-        [Tooltip("비워 두면 기본 손가락 그림(Resources/Interaction/Hand)을 쓰고, 그것도 없으면 임시 동그라미를 쓴다.")]
+        [Tooltip("비워 두면 기본 손가락 그림(Resources/Interaction/Hand)을 쓰고, 그것도 없으면 동그라미로 대신한다.")]
         public Sprite handSprite;
         [Min(16f)] public float handSize = 180f;
         [Tooltip("그림에서 손가락 끝의 위치(0~1). 이 점이 안내 위치에 오고, 누르는 동작도 이 점을 중심으로 한다.")]
@@ -253,8 +253,8 @@ namespace Mountains
                 .OnComplete(() => UnityEngine.Object.Destroy(rect.gameObject));
         }
 
-        // ───────────── 임시 그림 ─────────────
-        // 실제 이미지가 없을 때 쓰는 동그라미/둥근 막대를 코드로 한 번만 만들어 둔다.
+        // ───────────── 대체 그림 ─────────────
+        // 스프라이트가 지정되지 않았을 때 쓰는 동그라미/둥근 막대를 코드로 한 번만 만들어 둔다.
 
         static Sprite _circle;
         static Sprite _round;

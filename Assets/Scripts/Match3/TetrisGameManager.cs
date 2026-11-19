@@ -424,7 +424,7 @@ namespace Match3
         /// <summary>
         /// 줄이 지워지기 직전(아직 board가 내려앉기 전)에 그 줄들의 칸마다 색 파티클을
         /// 띄우고, 몇 줄이 한 번에 지워졌는지(1~4)에 따라 점점 더 화려한 문구를 하나
-        /// 띄운다 - 1줄 "Nice!"부터 4줄(테트리스) "TETRIS!!"까지.
+        /// 띄운다 - 1줄 "Nice!"부터 4줄 "PERFECT!!"까지.
         /// </summary>
         private void SpawnLineClearEffects(List<int> fullRows)
         {
@@ -458,7 +458,7 @@ namespace Match3
                 case 1: return ("Nice!", Color.white, 64f);
                 case 2: return ("Great!", new Color(0.95f, 0.87f, 0.20f), 76f);
                 case 3: return ("Awesome!", new Color(0.95f, 0.61f, 0.07f), 88f);
-                default: return ("TETRIS!!", new Color(0.91f, 0.30f, 0.24f), 104f);
+                default: return ("PERFECT!!", new Color(0.91f, 0.30f, 0.24f), 104f);
             }
         }
 

@@ -16,7 +16,6 @@ namespace Mountains
     // 여러 개를 뿜는 발생기라 VegetationScatter로 대량 배치하기엔 맞지 않는다.
     static class InsectSwarmSetup
     {
-        // 나비 경로는 InsectSwarmDiagnostics도 쓴다.
         internal const string PrefabPath = "Assets/Prefabs/InsectSwarm.prefab";
         internal const string MeshPath = "Assets/Prefabs/InsectWing.asset";
         const string FlyPrefabPath = "Assets/Prefabs/FlySwarm.prefab";
